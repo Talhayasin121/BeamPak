@@ -1,0 +1,13 @@
+{
+  "name": "beampak",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/preview.mjs",
+    "build:netlify": "node scripts/build-netlify.mjs"
+  },
+  "dependencies": {
+    "@netlify/database": "2.0.3"
+  }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex"><title>Beampak — Order Management</title>
+  <link rel="icon" href="/media/icon.png"><link rel="stylesheet" href="/store.css"><script type="module" src="/manage.js"></script>
+</head>
+<body>
+  <header class="header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Beampak storefront"><span class="brand-mark" aria-hidden="true"></span><span>BEAM<i>PAK</i></span></a></div></header>
+  <main class="shell manager">
+    <h1>ORDER MANAGEMENT</h1>
+    <div class="panel-body">
+      <p class="manager-notice" id="manager-notice">Sign in with your store access key. On the private Sites deployment, the store owner can use their signed-in account.</p>
+      <form class="stack" id="manage-login" method="post">
+        <label>Store access key<input type="password" name="key" autocomplete="off" maxlength="1017" required></label>
+        <button class="btn btn-primary" disabled>View orders</button>
+      </form>
+      <button id="owner-open" class="btn btn-ghost" type="button" hidden>Open as signed-in owner</button>
+      <form class="manage-tools" id="manage-filter" hidden>
+        <label>Order reference<input name="reference" placeholder="BP-XXXXXXXXXX" maxlength="13"></label>
+        <label>Order status<select name="status"><option value="">All statuses</option></select></label>
+        <button class="btn btn-primary">Find orders</button>
+        <button class="btn btn-ghost" id="lock" type="button">Lock view</button>
+      </form>
+      <p class="form-error" role="alert" id="manager-error" hidden></p>
+      <p id="manager-result" role="status"></p>
+      <div class="manage-orders" id="manage-orders"></div>
+      <button class="btn btn-ghost" type="button" id="more-orders" hidden>Load older orders</button>
+    </div>
+  </main>
+</body>
+</html>
