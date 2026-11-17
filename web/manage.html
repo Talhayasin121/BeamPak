@@ -2,21 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex"><title>Beampak — Order Management</title>
+  <meta name="robots" content="noindex"><title>Beampak — Store Management</title>
   <link rel="icon" href="/media/icon.png"><link rel="stylesheet" href="/store.css"><script type="module" src="/manage.js"></script>
 </head>
 <body>
   <header class="header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Beampak storefront"><span class="brand-mark" aria-hidden="true"></span><span>BEAM<i>PAK</i></span></a></div></header>
   <main class="shell manager">
-    <h1>ORDER MANAGEMENT</h1>
+    <h1>STORE MANAGEMENT</h1>
     <div class="panel-body">
       <p class="manager-notice" id="manager-notice">Sign in with your store access key. On the private Sites deployment, the store owner can use their signed-in account.</p>
       <form class="stack" id="manage-login" method="post">
         <label>Store access key<input type="password" name="key" autocomplete="off" maxlength="1017" required></label>
-        <button class="btn btn-primary" disabled>View orders</button>
+        <button class="btn btn-primary" disabled>Open store manager</button>
       </form>
       <button id="owner-open" class="btn btn-ghost" type="button" hidden>Open as signed-in owner</button>
-      <form class="manage-tools" id="manage-filter" hidden>
+      <section class="manage-interest" id="manage-interest" aria-labelledby="interest-title" hidden>
+        <div class="manage-interest-header"><h2 id="interest-title">Availability requests</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh requests</button></div>
+        <p id="interest-totals" role="status"></p>
+        <p>Each browser contributes one request per product. Repeat submissions update the quantity.</p>
+        <ul id="interest-campaigns" class="interest-campaigns"></ul>
+      </section>
+      <h2 id="orders-title" hidden>Previous orders</h2>
+      <form class="manage-tools" id="manage-filter" aria-labelledby="orders-title" hidden>
         <label>Order reference<input name="reference" placeholder="BP-XXXXXXXXXX" maxlength="13"></label>
         <label>Order status<select name="status"><option value="">All statuses</option></select></label>
         <button class="btn btn-primary">Find orders</button>

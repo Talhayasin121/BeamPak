@@ -7,6 +7,11 @@ const error = find('#manager-error');
 const result = find('#manager-result');
 const more = find('#more-orders');
 const notice = find('#manager-notice');
+const interest = find('#manage-interest');
+const interestTotals = find('#interest-totals');
+const interestCampaigns = find('#interest-campaigns');
+const refreshInterest = find('#refresh-interest');
+const ordersTitle = find('#orders-title');
 const ownerOpen = find('#owner-open');
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const safe = value => String(value).replace(/[&<>"']/g, character => escapes[character]);
@@ -23,6 +28,11 @@ function lock() {
   login.reset();
   filter.reset();
   list.replaceChildren();
+  interest.hidden = true;
+  ordersTitle.hidden = true;
+  interestTotals.textContent = '';
+  interestCampaigns.replaceChildren();
+  refreshInterest.disabled = false;
   managedOrders = [];
   cursor = null;
   error.hidden = true;
@@ -55,6 +65,28 @@ function showError(failure) {
     ? 'Could not reach the order service. Please try again.'
     : failure.message;
 }
+const formatCount = count => Number(count).toLocaleString('en-PK');
+async function loadInterest(sequence) {
+  refreshInterest.disabled = true;
+  interestCampaigns.replaceChildren();
+  interestTotals.textContent = 'Loading requests…';
+  try {
+    const summary = await request('/api/manage/interest');
+    if (sequence !== requestNumber) return;
+    interestTotals.textContent = formatCount(summary.requests) + ' requests · ' + formatCount(summary.pieces) + ' pieces';
+    for (const campaign of summary.campaigns) {
+      const line = document.createElement('li');
+      const label = [campaign.source,campaign.medium,campaign.campaign].filter(Boolean).join(' / ') || 'Untagged';
+      line.textContent = label + ' · ' + formatCount(campaign.requests) + ' requests · ' + formatCount(campaign.pieces) + ' pieces';
+      interestCampaigns.append(line);
+    }
+  } catch {
+    if (sequence === requestNumber) interestTotals.textContent = 'Could not load availability requests. Try refreshing.';
+  } finally {
+    if (sequence === requestNumber) refreshInterest.disabled = false;
+  }
+}
+refreshInterest.addEventListener('click', () => loadInterest(requestNumber));
 function renderOrders() {
   result.textContent = managedOrders.length ? managedOrders.length + ' order(s) shown' : 'No orders found.';
   list.innerHTML = managedOrders.map(order => {
@@ -85,9 +117,13 @@ async function loadOrders({append=false, silent=false}={}) {
     notice.hidden = true;
     ownerOpen.hidden = true;
     filter.hidden = false;
+    ordersTitle.hidden = false;
+    interest.hidden = false;
+    void loadInterest(sequence);
   } catch (failure) {
     if (sequence !== requestNumber) return;
     result.textContent = '';
+    refreshInterest.disabled = false;
     if (!silent || failure.status !== 401) showError(failure);
   } finally {
     if (sequence === requestNumber) more.disabled = false;

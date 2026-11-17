@@ -95,8 +95,33 @@ async function authorized(request,key) {
   const expected = new Uint8Array(await crypto.subtle.digest('SHA-256',encoder.encode(key)));
   return actual.reduce((difference,byte,index)=>difference | (byte ^ expected[index]),0) === 0;
 }
+function campaignTag(value) {
+  const tag = trim(value).toLowerCase();
+  return /^[a-z0-9][a-z0-9_. -]{0,59}$/.test(tag) ? tag : '';
+}
+async function availabilityRequest(data,query) {
+  const item = products.get(data.productId);
+  const visitor = trim(data.visitorId).toLowerCase();
+  const quantity = data.quantity;
+  if (!item?.requestable || !uuidPattern.test(visitor) || !Number.isInteger(quantity) || quantity < 1 || quantity > maxOrderQuantity) {
+    return error('Choose an available product and a valid quantity.',400);
+  }
+  if (data.expectedSubtotal !== item.price * quantity) return error('The price has changed. Refresh the product page and review your request.',409);
+  const campaign = data.campaign;
+  await query('INSERT INTO availability_requests (visitor_id, product_id, quantity, unit_price, source, medium, campaign) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(visitor_id, product_id) DO UPDATE SET quantity = excluded.quantity, unit_price = excluded.unit_price',
+    [visitor,item.id,quantity,item.price,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name)]);
+  return json({saved:true});
+}
+async function availabilitySummary(query) {
+  const [totals] = await query('SELECT COUNT(*) AS requests, COALESCE(SUM(quantity), 0) AS pieces FROM availability_requests',[]);
+  const campaigns = await query('SELECT source, medium, campaign, COUNT(*) AS requests, SUM(quantity) AS pieces FROM availability_requests GROUP BY source, medium, campaign ORDER BY requests DESC, source, medium, campaign LIMIT 50',[]);
+  const counts = row => ({requests:Number(row.requests),pieces:Number(row.pieces)});
+  return json({...counts(totals),campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,...counts(row)}))});
+}
+
 async function admin(request,query,adminKey,path,data,isStoreOwner) {
   if (!isStoreOwner && !(await authorized(request,adminKey))) return error('Enter the store access key.',401);
+  if (path === '/api/manage/interest' && request.method === 'GET') return availabilitySummary(query);
   if (path === '/api/manage/orders' && request.method === 'GET') {
     const searchParams = new URL(request.url).searchParams;
     const reference = trim(searchParams.get('reference')).toUpperCase();
@@ -148,10 +173,12 @@ export async function handleOrders(request, query, adminKey, isStoreOwner = fals
   if (!query) return error('Order service is temporarily unavailable.',503);
   try {
     if (path.startsWith('/api/manage/')) return await admin(request,query,adminKey,path,request.method === 'POST' ? await bodyJson(request) : null,isStoreOwner);
-    if (path !== '/api/orders' && path !== '/api/orders/lookup') return error('Page not found.',404);
+    if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/interest') return error('Page not found.',404);
     if (request.method !== 'POST') return error('Method not allowed.',405);
+    if (path === '/api/orders' && !catalog.some(item => item.inStock)) return error('Orders are paused. Visit the product page to request availability.',409);
     const data = await bodyJson(request);
     if (!data) return error('Check the information you entered and try again.');
+    if (path === '/api/interest') return await availabilityRequest(data,query);
     return path === '/api/orders' ? await checkout(data,query) : await lookup(data,query);
   } catch (failure) {
     console.error('Order operation failed:',failure.name);

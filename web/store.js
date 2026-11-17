@@ -1,4 +1,4 @@
-import {catalog, freeShipping, maxOrderQuantity, shippingRate} from './catalog.js';
+import {catalog, maxOrderQuantity} from './catalog.js';
 
 const icons = {
   chat:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L4 20l1-3.8a8.5 8.5 0 1 1 15.5-4.7Z"/><path d="M9.1 8.1c-.4.3-.6.8-.5 1.4.3 2.2 2.6 4.4 4.9 4.8.6.1 1.1-.1 1.4-.5l.4-.6-2.2-1.1-.6.7c-1.1-.4-1.9-1.3-2.3-2.3l.7-.6-1.1-2.2-.7.4Z"/>',
@@ -25,11 +25,11 @@ const unitPrice = item => money(item.price) + (item.unit ? ' / ' + item.unit : '
 const products = new Map(catalog.map(item => [item.id, item]));
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const safe = value => String(value).replace(/[&<>"']/g, character => escapes[character]);
-const state = {filter:'all', search:'', sort:'featured', inStockOnly:false, cart:{}, screen:'', opener:null, checkoutKey:null, submittingOrder:false, itemQuantity:1};
+const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, screen:'', opener:null, submittingRequest:false, itemQuantity:1};
 try {
   const saved = JSON.parse(localStorage.getItem('beampak-bag')) || {};
   for (const [id, quantity] of Object.entries(saved)) {
-    if (products.get(id)?.inStock && Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity) state.cart[id] = quantity;
+    if (products.get(id)?.requestable && Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity) state.cart[id] = quantity;
   }
 } catch { /* Shopping remains available when browser storage is disabled. */ }
 const slides = [
@@ -57,21 +57,21 @@ function matchesQuery(item, query) {
 function renderCatalog() {
   if (!catalogGrid) return;
   const filtered = catalog.filter(item => (state.filter === 'all' || item.filters.includes(state.filter)) &&
-    (!state.inStockOnly || item.inStock) && matchesQuery(item, state.search));
+    (!state.availableOnly || item.requestable) && matchesQuery(item, state.search));
   const sorts = {low:(a,b)=>a.price-b.price, high:(a,b)=>b.price-a.price, name:(a,b)=>a.name.localeCompare(b.name)};
   if (sorts[state.sort]) filtered.sort(sorts[state.sort]);
   document.querySelectorAll('.filters button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.filter === state.filter)));
   document.querySelectorAll('.nav a').forEach(link => link.classList.toggle('nav-active',link.dataset.filter === state.filter));
-  find('#stock-only').checked = state.inStockOnly;
+  find('#stock-only').checked = state.availableOnly;
   find('#catalog-count').textContent = filtered.length + (filtered.length === 1 ? ' product' : ' products');
   const summary = find('#search-summary');
   summary.hidden = !state.search;
   summary.innerHTML = state.search ? 'Results for “' + safe(state.search) + '” · ' + filtered.length + ' <button data-action="clear-search" class="text-button">Clear search</button>' : '';
   catalogGrid.innerHTML = filtered.length ? filtered.map(item => {
     const colors = item.swatches.map(color => '<i style="background:' + color + '"></i>').join('');
-    const availability = item.inStock ? 'In stock' : 'Out of stock';
-    const badge = '<span class="product-badge ' + (item.inStock ? 'stock-available' : 'stock-unavailable') + '">' + availability + '</span>';
-    const addButton = item.inStock ? '<button class="add" data-add="' + item.id + '" data-open-bag aria-label="Add ' + item.name + ' to bag">' + icon('plus') + ' Add</button>' : '';
+    const availability = item.requestable ? 'Available to request' : 'Out of stock';
+    const badge = '<span class="product-badge ' + (item.requestable ? 'stock-available' : 'stock-unavailable') + '">' + availability + '</span>';
+    const addButton = item.requestable ? '<button class="add" data-add="' + item.id + '" data-open-bag aria-label="Add ' + item.name + ' to bag">' + icon('plus') + ' Add</button>' : '';
     const old = item.old ? ' <del>' + money(item.old) + '</del>' : '';
     const productLink = (className, content, label = item.name) => item.page
       ? '<a class="' + className + '" href="' + item.page + '" aria-label="View ' + label + '">' + content + '</a>'
@@ -89,7 +89,6 @@ function persistCart() {
   find('.bag-btn').setAttribute('aria-label','Open shopping bag, ' + count + (count === 1 ? ' item' : ' items'));
 }
 function setQuantity(id, quantity) {
-  state.checkoutKey = null;
   if (quantity < 1) delete state.cart[id];
   else state.cart[id] = quantity;
   persistCart();
@@ -116,18 +115,13 @@ panel.addEventListener('close', () => {
   state.screen = '';
   state.opener?.focus({preventScroll:true});
 });
-panel.addEventListener('click', event => {if (event.target === panel && !state.submittingOrder) panel.close();});
-panel.addEventListener('cancel', event => {if (state.submittingOrder) event.preventDefault();});
+panel.addEventListener('click', event => {if (event.target === panel && !state.submittingRequest) panel.close();});
+panel.addEventListener('cancel', event => {if (state.submittingRequest) event.preventDefault();});
 function cartSubtotal() {
   return Object.entries(state.cart).reduce((sum, [id, quantity]) => sum + products.get(id).price * quantity, 0);
 }
-function cartShipping(subtotal) {
-  return subtotal >= freeShipping || subtotal === 0 ? 0 : shippingRate;
-}
 function totals() {
-  const subtotal = cartSubtotal();
-  const shipping = cartShipping(subtotal);
-  return '<div class="totals"><p><span>Subtotal</span><span>' + money(subtotal) + '</span></p><p><span>Delivery</span><span>' + (shipping ? money(shipping) : 'Free') + '</span></p><p><span>Total</span><span>' + money(subtotal+shipping) + '</span></p></div>';
+  return '<div class="totals"><p><span>Product subtotal</span><span>' + money(cartSubtotal()) + '</span></p></div>';
 }
 function showCart(focusSelector) {
   const entries = Object.entries(state.cart);
@@ -135,37 +129,33 @@ function showCart(focusSelector) {
     const item = products.get(id);
     return '<div class="cart-row"><img src="/media/' + item.image + '" alt=""><div><h3>' + item.name + '</h3><div class="stepper"><button data-qty="' + id + '" data-step="-1" aria-label="Decrease quantity of ' + item.name + '">−</button><span>' + quantity + '</span><button data-qty="' + id + '" data-step="1" aria-label="Increase quantity of ' + item.name + '">+</button><button class="remove" data-qty="' + id + '" data-step="0">Remove</button></div></div><span class="price">' + money(item.price * quantity) + '</span></div>';
   }).join('');
-  const subtotal = cartSubtotal();
-  const deliveryMessage = subtotal >= freeShipping ? 'Your order qualifies for free delivery.' : 'Add ' + money(freeShipping - subtotal) + ' for free delivery.';
-  const progress = '<div class="shipping-progress"><strong>' + deliveryMessage + '</strong><progress max="' + freeShipping + '" value="' + Math.min(subtotal,freeShipping) + '" aria-label="Progress toward free delivery"></progress></div>';
-  const contents = entries.length ? progress + lines + totals() + '<button class="btn btn-primary wide-button" data-action="checkout">Continue to checkout ' + icon('arrow') + '</button>'
+  const contents = entries.length ? lines + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="availability">Review availability request ' + icon('arrow') + '</button>'
     : '<p>Your shopping bag is empty.</p><button class="btn btn-primary" data-action="continue">Browse the shop</button>';
   openPanel('cart', 'YOUR BAG', contents, 'drawer');
   if (focusSelector) panel.querySelector(focusSelector)?.focus();
 }
 function showProduct(id) {
   const item = products.get(id);
-  const purchase = item.inStock
-    ? '<p class="detail-stock stock-available">In stock</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
+  const purchase = item.requestable
+    ? '<p class="detail-stock stock-available">Available to request</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
     : '<p class="detail-stock stock-unavailable">Out of stock</p>';
   openPanel('product', item.name, '<div class="product-detail"><img src="/media/' + item.image + '" alt="' + item.name + '"><div><p class="eyebrow">' + item.category + '</p><p class="price">' + money(item.price) + '</p><p>' + item.detail + '</p><ul>' + item.specs.map(spec => '<li>' + spec + '</li>').join('') + '</ul>' + purchase + '</div></div>', 'wide');
 }
 const phoneField = '<label>Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" required maxlength="24"></label>';
-function showCheckout() {
+function showAvailability() {
   if (!Object.keys(state.cart).length) return showCart();
-  const orderLines = Object.entries(state.cart).map(([id, quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
-  openPanel('checkout','CHECKOUT', '<form id="checkout-form" class="stack"><p class="checkout-heading">Delivery details</p><label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required data-autofocus></label><div class="form-pair">' + phoneField + '<label>City<input name="city" autocomplete="address-level2" minlength="2" maxlength="80" required></label></div><label>Delivery address<textarea name="address" autocomplete="street-address" minlength="8" maxlength="300" required></textarea></label><p class="checkout-heading">Payment</p><p class="checkout-payment">' + icon('wallet') + ' Cash on delivery</p><details class="checkout-summary"><summary>Review items in your order</summary><ul>' + orderLines + '</ul></details>' + totals() + '<p class="checkout-note">Your contact and address details are used to process, deliver and support your order. <a href="/support.html#privacy" target="_blank" rel="noopener">How we use your data</a></p><p class="form-error" role="alert" hidden></p><button class="btn btn-primary wide-button" type="submit">Place cash-on-delivery order</button><button class="text-button" type="button" data-action="cart">Back to bag</button></form>', 'drawer');
+  const items = Object.entries(state.cart).map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
+  openPanel('availability','REVIEW YOUR REQUEST','<form id="availability-form" class="stack"><p>Stock and delivery dates are pending confirmation. This request is free and does not reserve stock.</p><ul>' + items + '</ul>' + totals() + '<p class="form-error" role="alert" hidden></p><button type="submit" class="btn btn-primary wide-button">Submit availability request</button><button type="button" class="text-button" data-action="cart">Back to bag</button></form>','drawer');
 }
 function showTrack() {
   openPanel('track','TRACK AN ORDER','<form id="track-form" class="stack"><label>Order reference<input name="reference" placeholder="BP-XXXXXXXXXX" required maxlength="15" data-autofocus></label>' + phoneField + '<p class="form-error" role="alert" hidden></p><button class="btn btn-primary" type="submit">Find order</button></form>');
 }
-function showResult(order, placed) {
+function showResult(order) {
   const reference = safe(order.reference);
   const status = safe(order.status);
-  const message = placed ? '<p>Save your reference and use the same mobile number to track your order.</p>' : '';
   const support = 'https://wa.me/923309153823?text=' + encodeURIComponent('Hello Beampak, I have a question about order ' + order.reference + '.');
   const items = order.items.map(item => '<li>' + safe(item.name) + ' × ' + Number(item.quantity) + '</li>').join('');
-  openPanel('result', placed ? 'ORDER RECEIVED' : 'ORDER DETAILS', '<p class="order-ref">' + reference + '</p><p>Status <strong>' + status + '</strong></p><ul>' + items + '</ul><p><strong>' + money(order.total) + '</strong> · Cash on delivery</p>' + message + '<div class="receipt-actions"><button class="btn btn-ghost" data-action="copy-reference">Copy reference</button><a class="btn btn-ghost" href="' + support + '" target="_blank" rel="noopener noreferrer">WhatsApp support</a></div><p class="receipt-feedback" role="status"></p><button class="btn btn-primary" data-action="continue">Continue shopping</button>');
+  openPanel('result', 'ORDER DETAILS', '<p class="order-ref">' + reference + '</p><p>Status <strong>' + status + '</strong></p><ul>' + items + '</ul><p><strong>' + money(order.total) + '</strong> · Cash on delivery</p>' + '<div class="receipt-actions"><button class="btn btn-ghost" data-action="copy-reference">Copy reference</button><a class="btn btn-ghost" href="' + support + '" target="_blank" rel="noopener noreferrer">WhatsApp support</a></div><p class="receipt-feedback" role="status"></p><button class="btn btn-primary" data-action="continue">Continue shopping</button>');
 }
 const gallery = [
   {image:'rgb-pods.jpg', alt:'Two LED pods, a remote, a split USB lead and mounting accessories', caption:'Reference kit photo'},
@@ -206,7 +196,7 @@ function updateSearchResults(query) {
   panel.querySelector('.search-results').innerHTML = matches.length ? matches.map(item => {
     const attributes = item.page ? '<a href="' + item.page + '"' : '<button type="button" data-product="' + item.id + '"';
     const endTag = item.page ? '</a>' : '</button>';
-    return attributes + ' class="search-result"><img src="/media/' + item.image + '" alt=""><span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.inStock ? 'In stock' : 'Out of stock') + '</small></span>' + endTag;
+    return attributes + ' class="search-result"><img src="/media/' + item.image + '" alt=""><span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.requestable ? 'Available to request' : 'Out of stock') + '</small></span>' + endTag;
   }).join('') : '<p>No matching products.</p>';
 }
 function toggleMenu(open) {
@@ -221,7 +211,7 @@ const actions = {
   close:()=>panel.close(),
   menu:()=>toggleMenu(!find('.nav').classList.contains('open')),
   film:()=>openPanel('film','AFTER DARK','<div class="film"><video controls playsinline preload="none" poster="/media/hero.jpg" src="https://videos.pexels.com/video-files/29498826/12698158_4070_2160_24fps.mp4"></video><p><a href="' + filmPage + '" target="_blank" rel="noopener">Watch on Pexels · Michael Pronin</a></p></div>','wide'),
-  checkout:showCheckout,
+  availability:showAvailability,
   'copy-reference':async()=>{
     const feedback = panel.querySelector('.receipt-feedback');
     try {
@@ -239,13 +229,13 @@ const actions = {
     else location.assign('/#shop');
   },
   'clear-search':()=>{state.search='';renderCatalog();},
-  reset:()=>{state.search='';state.filter='all';state.inStockOnly=false;renderCatalog();},
-  help:()=>openPanel('help','DELIVERY & FITMENT','<details open><summary>How much is delivery?</summary><p>Delivery costs Rs. 249 within Pakistan and is free on orders of Rs. 5,000 or more.</p></details><details><summary>How do I pay?</summary><p>Pay cash when your order arrives.</p></details><details><summary>Will an accessory fit my vehicle?</summary><p>Check the fitment notes on the product page. Compare the socket, voltage or mounting dimensions with your vehicle before ordering.</p></details><details><summary>How do I find my order?</summary><p>Use the order reference and mobile number from checkout.</p><button class="btn btn-ghost" data-action="track">Track an order</button></details>'),
+  reset:()=>{state.search='';state.filter='all';state.availableOnly=false;renderCatalog();},
+  help:()=>location.assign('/support.html'),
   credits:()=>openPanel('credits','PHOTO & FILM CREDITS','<p><a href="https://unsplash.com/photos/black-porsche-911-parked-in-garage-uH38ppzawSw" target="_blank" rel="noopener">Garage photography by Patrik Storm</a> on Unsplash.</p><p><a href="https://unsplash.com/photos/red-and-black-sports-bike-on-road-during-nighttime-X8ZAvIL-PjM" target="_blank" rel="noopener">Motorcycle photography by Valery Sysoev</a> on Unsplash.</p><p><a href="' + filmPage + '" target="_blank" rel="noopener">Film by Michael Pronin</a> on Pexels.</p><p>The After Dark hero scenes and LED pod installation examples are AI-generated illustrations. The kit pack shot was edited from a supplied product photo.</p>')
 };
 document.addEventListener('click', event => {
   const control = event.target.closest('[data-action],[data-filter],[data-product],[data-add],[data-qty],[data-slide],[data-gallery],[data-piece-count]');
-  if (!control || state.submittingOrder) return;
+  if (!control || state.submittingRequest) return;
   const {action,filter,product,add,qty,step,slide,gallery,pieceCount} = control.dataset;
   if (action) actions[action]?.();
   else if (filter) {
@@ -255,7 +245,7 @@ document.addEventListener('click', event => {
     toggleMenu(false);
   } else if (product) showProduct(product);
   else if (add) {
-    if (!products.get(add)?.inStock) return;
+    if (!products.get(add)?.requestable) return;
     const amount = control.closest('[data-purchase],[data-mobile-purchase]') ? state.itemQuantity : 1;
     if (amount === null) return;
     const quantity = (state.cart[add] || 0) + amount;
@@ -280,28 +270,39 @@ panel.addEventListener('input', event => {
   if (event.target.form?.id === 'search-form') updateSearchResults(event.target.value);
 });
 find('#stock-only')?.addEventListener('change', event => {
-  state.inStockOnly = event.target.checked;
+  state.availableOnly = event.target.checked;
   renderCatalog();
 });
 find('#sort')?.addEventListener('change', event => {state.sort=event.target.value;renderCatalog();});
-async function orderRequestId(data, items) {
-  const phone = data.phone.trim().replace(/[\s()+-]/g,'').replace(/^(0092|92)/,'0');
-  const contact = [data.name.trim(),phone,data.city.trim(),data.address.trim()];
-  const payload = JSON.stringify([contact,items.slice().sort((a,b)=>a.id.localeCompare(b.id))]);
-  const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload));
-  const fingerprint = Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
-  let previous = state.checkoutKey;
+function readCampaign() {
+  const params = new URLSearchParams(location.search);
+  const tag = key => {
+    const value = (params.get(key) || '').trim().toLowerCase();
+    return /^[a-z0-9][a-z0-9_. -]{0,59}$/.test(value) ? value : '';
+  };
+  const current = {source:tag('utm_source'),medium:tag('utm_medium'),name:tag('utm_campaign')};
   try {
-    previous ??= JSON.parse(sessionStorage.getItem('beampak-checkout-attempt'));
-  } catch { /* Checkout can still retry within this page. */ }
-  const id = previous?.fingerprint === fingerprint ? previous.id : crypto.randomUUID();
-  state.checkoutKey = {fingerprint,id};
-  try {sessionStorage.setItem('beampak-checkout-attempt',JSON.stringify(state.checkoutKey));} catch { /* Optional recovery storage. */ }
-  return id;
+    if (Object.values(current).some(Boolean)) sessionStorage.setItem('beampak-campaign',JSON.stringify(current));
+    else return JSON.parse(sessionStorage.getItem('beampak-campaign')) || current;
+  } catch { /* Keep the current campaign if session storage is unavailable. */ }
+  return current;
+}
+const campaign = readCampaign();
+let visitorId;
+function requestVisitor() {
+  if (visitorId) return visitorId;
+  try {
+    visitorId = localStorage.getItem('beampak-availability-visitor');
+    if (!visitorId || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(visitorId)) {
+      visitorId = crypto.randomUUID();
+      localStorage.setItem('beampak-availability-visitor',visitorId);
+    }
+  } catch {visitorId ||= crypto.randomUUID();}
+  return visitorId;
 }
 document.addEventListener('submit', async event => {
   const form = event.target;
-  if (!['search-form','checkout-form','track-form'].includes(form.id)) return;
+  if (!['search-form','availability-form','track-form'].includes(form.id)) return;
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
   if (form.id === 'search-form') {
@@ -309,61 +310,59 @@ document.addEventListener('submit', async event => {
     if (!catalogGrid) return location.assign('/?q=' + encodeURIComponent(query) + '#shop');
     state.filter = 'all';
     state.search = query;
-    state.inStockOnly = false;
+    state.availableOnly = false;
     renderCatalog();
     return actions.continue();
   }
-  const checkout = form.id === 'checkout-form';
+  const interest = form.id === 'availability-form';
   const error = form.querySelector('.form-error');
   const button = form.querySelector('button[type="submit"]');
-  if (state.submittingOrder || button.disabled) return;
+  if (state.submittingRequest || button.disabled) return;
   error.hidden = true;
   button.disabled = true;
   const closeButton = panel.querySelector('[data-action="close"]');
   const backButton = form.querySelector('[data-action="cart"]');
   const idleLabel = button.textContent;
-  if (checkout) {
-    state.submittingOrder = true;
+  if (interest) {
+    state.submittingRequest = true;
     closeButton.disabled = true;
     backButton.disabled = true;
-    button.textContent = 'Placing order…';
+    button.textContent = 'Saving request…';
   }
   try {
-    if (checkout) {
-      data.items = Object.entries(state.cart).map(([id,quantity])=>({id,quantity}));
-      const subtotal = cartSubtotal();
-      data.expectedTotal = subtotal + cartShipping(subtotal);
-      data.requestId = await orderRequestId(data,data.items);
+    if (interest) {
+      const entry = Object.entries(state.cart)[0];
+      if (!entry) return showCart();
+      const [productId,quantity] = entry;
+      Object.assign(data,{productId,quantity,expectedSubtotal:cartSubtotal(),visitorId:requestVisitor(),campaign});
     }
-    const response = await fetch(checkout ? '/api/orders' : '/api/orders/lookup',{
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data), signal:AbortSignal.timeout(20000)
+    const response = await fetch(interest ? '/api/interest' : '/api/orders/lookup',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(20000)
     });
-    const order = await response.json();
-    if (!response.ok) throw new Error(order.error || 'Please try again.');
-    if (!order.reference || !Array.isArray(order.items) || !Number.isSafeInteger(order.total)) throw new Error('Could not confirm the order. Retry with the same details.');
-    if (checkout) {
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Please try again.');
+    if (interest) {
+      if (result.saved !== true) throw new Error('Could not confirm your request. Please try again.');
       state.cart = {};
-      state.checkoutKey = null;
-      try {sessionStorage.removeItem('beampak-checkout-attempt');} catch { /* Optional recovery storage. */ }
       persistCart();
+      openPanel('result','THANKS FOR YOUR INTEREST','<p>We’ve noted your preferred quantity. We’re still finalizing stock and delivery dates, and your request helps us plan our first batch.</p><p>No order was placed and no payment is due.</p><button class="btn btn-primary" data-action="continue">Continue browsing</button>');
+    } else if (panel.open && panel.contains(form)) {
+      if (!result.reference || !Array.isArray(result.items) || !Number.isSafeInteger(result.total)) throw new Error('Could not retrieve this order. Please try again.');
+      showResult(result);
     }
-    if (panel.contains(form) && panel.open) showResult(order, checkout);
-    else if (checkout) notify('Order received · ' + order.reference);
   } catch (failure) {
-    const connectionFailure = ['TimeoutError','TypeError','SyntaxError'].includes(failure.name);
-    error.textContent = connectionFailure
-      ? checkout ? 'Could not confirm your order. Try again with the same details to avoid placing it twice.'
-        : 'Could not reach order tracking. Check your connection and try again.'
+    error.textContent = ['TimeoutError','TypeError','SyntaxError'].includes(failure.name)
+      ? 'Could not reach Beampak. Check your connection and try again.'
       : failure.message;
     error.hidden = false;
   } finally {
-    button.disabled = false;
-    if (checkout) {
-      state.submittingOrder = false;
+    if (interest) {
+      state.submittingRequest = false;
       closeButton.disabled = false;
       backButton.disabled = false;
-      button.textContent = idleLabel;
     }
+    button.disabled = false;
+    button.textContent = idleLabel;
   }
 });
 initIcons();
@@ -377,11 +376,11 @@ if (itemPage || featuredProduct) {
   const item = products.get(itemPage?.dataset.itemPage ?? featuredProduct.dataset.feature);
   document.querySelectorAll('[data-item-price]').forEach(label => {label.textContent = unitPrice(item);});
   const stock = find('[data-item-stock]');
-  stock.textContent = item.inStock ? 'In stock' : 'Out of stock';
-  stock.classList.toggle('stock-unavailable', !item.inStock);
+  stock.textContent = item.requestable ? 'Available to request' : 'Out of stock';
+  stock.classList.toggle('stock-unavailable', !item.requestable);
   if (itemPage) {
-    find('[data-purchase]').hidden = !item.inStock;
-    find('[data-mobile-purchase]').hidden = !item.inStock;
+    find('[data-purchase]').hidden = !item.requestable;
+    find('[data-mobile-purchase]').hidden = !item.requestable;
     const input = find('#item-quantity');
     input.max = maxOrderQuantity;
     find('#quantity-range').textContent = 'Whole numbers from 1 to ' + maxOrderQuantity;
