@@ -160,9 +160,9 @@ function showCheckout() {
   if (entries.some(([id])=>isConfirmed(id))) return showUnavailable();
   const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
   openPanel('checkout','REVIEW YOUR ORDER','<form id="confirmation-form" class="stack"><ul>' + items + '</ul>' + totals() +
-    '<label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label>City<input name="city" autocomplete="address-level2" minlength="2" maxlength="80" required></label>' +
+    '<label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label>Street address<textarea name="address" autocomplete="street-address" minlength="8" maxlength="300" rows="3" placeholder="House or building, street, and city" required></textarea></label><label>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required></label>' +
     '<label>Mobile number (optional)<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" maxlength="24"></label>' +
-    '<p class="checkout-note">We’ll save these details and your selected quantity. Stock and delivery are pending, and no payment is due. <a href="/support.html#privacy" target="_blank" rel="noopener">How we use your data</a></p>' +
+    '<p class="checkout-note">We’ll save the details you enter and your selected quantity to understand demand. Stock is pending. No shipment or payment is arranged when you confirm. <a href="/support.html#privacy" target="_blank" rel="noopener">How we use your data</a></p>' +
     '<p class="form-error" role="alert" hidden></p><button type="submit" class="btn btn-primary wide-button">Confirm order</button><button type="button" class="text-button" data-action="cart">Back to bag</button></form>','drawer');
 }
 function showTrack() {

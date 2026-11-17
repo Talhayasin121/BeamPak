@@ -103,16 +103,18 @@ async function confirmOrder(data,query) {
   const item = products.get(data.productId);
   const visitor = trim(data.visitorId).toLowerCase();
   const {quantity,campaign} = data;
-  const name = trim(data.name), city = trim(data.city), providedPhone = trim(data.phone);
+  const name = trim(data.name), address = trim(data.address), email = trim(data.email), providedPhone = trim(data.phone);
   const phone = providedPhone ? normalizePhone(providedPhone) : null;
   if (!item?.confirmable || !uuidPattern.test(visitor) || !Number.isInteger(quantity) || quantity < 1 || quantity > maxOrderQuantity) {
     return error('Check the selected product and quantity.');
   }
-  if (!validLength(name,2,100) || !validLength(city,2,80)) return error('Enter your name and city.');
+  if (!validLength(name,2,100)) return error('Enter your full name.');
+  if (!validLength(address,8,300)) return error('Enter your full street address, including your city.');
+  if (!validLength(email,3,254) || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return error('Enter a valid email address.');
   if (providedPhone && !phone) return error('Enter a valid Pakistani mobile number or leave it blank.');
   if (data.expectedSubtotal !== item.price * quantity) return error('The price has changed. Refresh the product page and review the subtotal.',409);
-  await query('INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, phone, source, medium, campaign) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT DO NOTHING',
-    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,city,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name)]);
+  await query("INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign) VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8, $9, $10, $11, $12) ON CONFLICT DO NOTHING",
+    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,address,email,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name)]);
   return json({saved:true});
 }
 async function availabilitySummary(query) {
@@ -129,13 +131,13 @@ async function confirmationSummary(request,query) {
   const [totals] = await query('SELECT COUNT(*) AS confirmations, COALESCE(SUM(quantity), 0) AS pieces FROM order_confirmations',[]);
   const campaigns = await query('SELECT source, medium, campaign, COUNT(*) AS confirmations, SUM(quantity) AS pieces FROM order_confirmations GROUP BY source, medium, campaign ORDER BY confirmations DESC, source, medium, campaign LIMIT 50',[]);
   const filter = after ? ' WHERE (confirmed_at, id) < (SELECT confirmed_at, id FROM order_confirmations WHERE id = $1)' : '';
-  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, phone, source, medium, campaign, confirmed_at FROM order_confirmations' + filter + ' ORDER BY confirmed_at DESC, id DESC LIMIT 31',after ? [after] : []);
+  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, confirmed_at FROM order_confirmations' + filter + ' ORDER BY confirmed_at DESC, id DESC LIMIT 31',after ? [after] : []);
   const counts = row => ({confirmations:Number(row.confirmations),pieces:Number(row.pieces)});
   const page = rows.slice(0,30);
   return json({...counts(totals),earlierRequests:Number(prior.requests),
     campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,...counts(row)})),
-    details:page.map(({id,product_id,quantity,unit_price,name,city,phone,source,medium,campaign,confirmed_at})=>
-      ({id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,phone,source,medium,campaign,confirmedAt:confirmed_at})),
+    details:page.map(({id,product_id,quantity,unit_price,name,city,address,email,phone,source,medium,campaign,confirmed_at})=>
+      ({id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,address,email,phone,source,medium,campaign,confirmedAt:confirmed_at})),
     next:rows.length > page.length ? page.at(-1).id : null
   });
 }

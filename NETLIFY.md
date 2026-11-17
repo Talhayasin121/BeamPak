@@ -27,4 +27,4 @@ Use Node.js 22.13 or later. Run **npm ci** and **npm run build:netlify** from th
 - Open **/manage** using the signed-in store owner account on the private Sites deployment or the configured **BEAMPAK_ADMIN_KEY** on Netlify.
 - Checkout confirmations, piece counts and submitted details appear above previous orders. The first confirmation per product is kept for each browser or supplied mobile number.
 - Add **utm_source**, **utm_medium** and **utm_campaign** to ad links to see checkout confirmations by campaign in the manager. Confirmations without those labels appear as untagged.
-- New orders are paused. Shoppers choose a quantity, enter their name and city, and confirm at checkout. A mobile number is optional and no payments are collected. Previous order tracking and status updates remain available.
+- New orders are paused. Shoppers choose a quantity, enter their name, street address and email, and confirm at checkout. A mobile number is optional and no payments are collected. Previous order tracking and status updates remain available.

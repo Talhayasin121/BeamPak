@@ -100,8 +100,10 @@ async function loadConfirmations(sequence,append=false) {
     }));
     if (!append) confirmationDetails.replaceChildren();
     const cards = summary.details.map(record =>
-      '<article class="manage-order"><h3>' + safe(record.name) + '</h3><p>' + safe(record.city) +
-      (record.phone ? ' · ' + safe(record.phone) : '') + '</p><p>' + safe(record.product) + ' × ' + Number(record.quantity) +
+      '<article class="manage-order"><h3>' + safe(record.name) + '</h3>' +
+      '<p class="confirmation-address">' + safe(record.address || record.city) + '</p>' +
+      (record.email ? '<p>' + safe(record.email) + '</p>' : '') +
+      (record.phone ? '<p>' + safe(record.phone) + '</p>' : '') + '<p>' + safe(record.product) + ' × ' + Number(record.quantity) +
       ' · Rs. ' + formatCount(record.quantity * record.unitPrice) + '</p><p>' + safe(record.confirmedAt) + ' UTC</p><p>' + safe(campaignLabel(record)) + '</p></article>'
     ).join('');
     confirmationDetails.insertAdjacentHTML('beforeend',cards);
