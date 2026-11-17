@@ -4,9 +4,9 @@ The Netlify build includes the storefront, product page and WhatsApp button. Net
 
 ## Deploy from Git
 
-1. Merge the Beampak pull request into your GitHub repository’s default branch.
-2. In Netlify, choose **Add new project → Import an existing project** and select that repository. Leave the base directory at the repository root.
-3. Netlify reads the build settings from netlify.toml. The build command is **npm run build:netlify**, the publish directory is **dist-netlify**, and the functions directory is **netlify/functions**. Use the repository import flow so Netlify can build the functions and apply the database migration.
+1. In Netlify, choose **Add new project → Import an existing project**, connect GitHub and select **Talhayasin121/BeamPak**.
+2. Select **main** as the production branch and leave the base directory at the repository root.
+3. Netlify reads the build settings from netlify.toml. The build command is **npm run build:netlify**, the publish directory is **dist-netlify**, and the functions directory is **netlify/functions**. Use the repository import flow so Netlify can build the functions and apply the database migrations.
 4. Under **Project configuration → Environment variables**, create **BEAMPAK_ADMIN_KEY** with a unique, randomly generated secret of at least 20 characters. Mark it as containing a secret. If Netlify offers scope selection, include **Functions**. Redeploy if you add it after the first deploy.
 5. Publish the project. On a compatible plan, Netlify provisions the database and applies the migrations from netlify/database/migrations. Confirm checkout on a deploy preview, then sign in at **/manage** with your admin key and verify the saved quantity and form details. Keep test traffic out of your production campaign totals.
 
