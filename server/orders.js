@@ -99,17 +99,20 @@ function campaignTag(value) {
   const tag = trim(value).toLowerCase();
   return /^[a-z0-9][a-z0-9_. -]{0,59}$/.test(tag) ? tag : '';
 }
-async function availabilityRequest(data,query) {
+async function confirmOrder(data,query) {
   const item = products.get(data.productId);
   const visitor = trim(data.visitorId).toLowerCase();
-  const quantity = data.quantity;
-  if (!item?.requestable || !uuidPattern.test(visitor) || !Number.isInteger(quantity) || quantity < 1 || quantity > maxOrderQuantity) {
-    return error('Choose an available product and a valid quantity.',400);
+  const {quantity,campaign} = data;
+  const name = trim(data.name), city = trim(data.city), providedPhone = trim(data.phone);
+  const phone = providedPhone ? normalizePhone(providedPhone) : null;
+  if (!item?.confirmable || !uuidPattern.test(visitor) || !Number.isInteger(quantity) || quantity < 1 || quantity > maxOrderQuantity) {
+    return error('Check the selected product and quantity.');
   }
-  if (data.expectedSubtotal !== item.price * quantity) return error('The price has changed. Refresh the product page and review your request.',409);
-  const campaign = data.campaign;
-  await query('INSERT INTO availability_requests (visitor_id, product_id, quantity, unit_price, source, medium, campaign) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(visitor_id, product_id) DO UPDATE SET quantity = excluded.quantity, unit_price = excluded.unit_price',
-    [visitor,item.id,quantity,item.price,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name)]);
+  if (!validLength(name,2,100) || !validLength(city,2,80)) return error('Enter your name and city.');
+  if (providedPhone && !phone) return error('Enter a valid Pakistani mobile number or leave it blank.');
+  if (data.expectedSubtotal !== item.price * quantity) return error('The price has changed. Refresh the product page and review the subtotal.',409);
+  await query('INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, phone, source, medium, campaign) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT DO NOTHING',
+    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,city,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name)]);
   return json({saved:true});
 }
 async function availabilitySummary(query) {
@@ -119,8 +122,27 @@ async function availabilitySummary(query) {
   return json({...counts(totals),campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,...counts(row)}))});
 }
 
+async function confirmationSummary(request,query) {
+  const after = new URL(request.url).searchParams.get('after') || '';
+  if (after && !uuidPattern.test(after)) return error('Choose a valid results page.');
+  const [prior] = await query('SELECT COUNT(*) AS requests FROM availability_requests',[]);
+  const [totals] = await query('SELECT COUNT(*) AS confirmations, COALESCE(SUM(quantity), 0) AS pieces FROM order_confirmations',[]);
+  const campaigns = await query('SELECT source, medium, campaign, COUNT(*) AS confirmations, SUM(quantity) AS pieces FROM order_confirmations GROUP BY source, medium, campaign ORDER BY confirmations DESC, source, medium, campaign LIMIT 50',[]);
+  const filter = after ? ' WHERE (confirmed_at, id) < (SELECT confirmed_at, id FROM order_confirmations WHERE id = $1)' : '';
+  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, phone, source, medium, campaign, confirmed_at FROM order_confirmations' + filter + ' ORDER BY confirmed_at DESC, id DESC LIMIT 31',after ? [after] : []);
+  const counts = row => ({confirmations:Number(row.confirmations),pieces:Number(row.pieces)});
+  const page = rows.slice(0,30);
+  return json({...counts(totals),earlierRequests:Number(prior.requests),
+    campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,...counts(row)})),
+    details:page.map(({id,product_id,quantity,unit_price,name,city,phone,source,medium,campaign,confirmed_at})=>
+      ({id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,phone,source,medium,campaign,confirmedAt:confirmed_at})),
+    next:rows.length > page.length ? page.at(-1).id : null
+  });
+}
+
 async function admin(request,query,adminKey,path,data,isStoreOwner) {
   if (!isStoreOwner && !(await authorized(request,adminKey))) return error('Enter the store access key.',401);
+  if (path === '/api/manage/order-confirmations' && request.method === 'GET') return confirmationSummary(request,query);
   if (path === '/api/manage/interest' && request.method === 'GET') return availabilitySummary(query);
   if (path === '/api/manage/orders' && request.method === 'GET') {
     const searchParams = new URL(request.url).searchParams;
@@ -173,12 +195,13 @@ export async function handleOrders(request, query, adminKey, isStoreOwner = fals
   if (!query) return error('Order service is temporarily unavailable.',503);
   try {
     if (path.startsWith('/api/manage/')) return await admin(request,query,adminKey,path,request.method === 'POST' ? await bodyJson(request) : null,isStoreOwner);
-    if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/interest') return error('Page not found.',404);
+    if (path === '/api/interest') return error('Refresh the store to use the latest checkout.',410);
+    if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/order-confirmations') return error('Page not found.',404);
     if (request.method !== 'POST') return error('Method not allowed.',405);
-    if (path === '/api/orders' && !catalog.some(item => item.inStock)) return error('Orders are paused. Visit the product page to request availability.',409);
+    if (path === '/api/orders' && !catalog.some(item => item.inStock)) return error('Orders are paused. Visit the product page for current stock information.',409);
     const data = await bodyJson(request);
     if (!data) return error('Check the information you entered and try again.');
-    if (path === '/api/interest') return await availabilityRequest(data,query);
+    if (path === '/api/order-confirmations') return await confirmOrder(data,query);
     return path === '/api/orders' ? await checkout(data,query) : await lookup(data,query);
   } catch (failure) {
     console.error('Order operation failed:',failure.name);

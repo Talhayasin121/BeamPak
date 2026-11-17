@@ -1,6 +1,6 @@
 # Beampak
 
-A responsive automotive accessories storefront with PKR pricing, a shopping bag, and availability requests for the LED pod. New order placement is paused. The Cloudflare Worker stores availability requests and previous orders in the DB D1 binding.
+A responsive automotive accessories storefront with PKR pricing, a shopping bag, and checkout confirmations for the LED pod. New order placement is paused. The Cloudflare Worker stores checkout confirmations, earlier availability requests and previous orders in the DB D1 binding.
 
 ## Netlify hosting
 
@@ -17,7 +17,7 @@ Open http://127.0.0.1:4173. The local preview uses a SQLite database in outputs/
 
 ## Store manager
 
-Open /manage to view requests, piece counts and campaign totals. The private Sites deployment accepts the signed-in store owner. The Netlify and local versions accept the configured store access key. The previous orders section supports order lookup and status updates.
+Open /manage to view checkout submissions, their form details, piece counts and campaign totals. The private Sites deployment accepts the signed-in store owner. The Netlify and local versions accept the configured store access key. The previous orders section supports order lookup and status updates.
 
 ## Media
 

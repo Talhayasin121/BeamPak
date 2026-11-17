@@ -17,10 +17,14 @@
       </form>
       <button id="owner-open" class="btn btn-ghost" type="button" hidden>Open as signed-in owner</button>
       <section class="manage-interest" id="manage-interest" aria-labelledby="interest-title" hidden>
-        <div class="manage-interest-header"><h2 id="interest-title">Availability requests</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh requests</button></div>
+        <div class="manage-interest-header"><h2 id="interest-title">Checkout confirmations</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh confirmations</button></div>
         <p id="interest-totals" role="status"></p>
-        <p>Each browser contributes one request per product. Repeat submissions update the quantity.</p>
+        <p>One confirmation per product for each browser or supplied mobile number. Recorded for demand tracking.</p>
         <ul id="interest-campaigns" class="interest-campaigns"></ul>
+        <p id="prior-requests" hidden></p>
+        <p id="confirmation-error" class="form-error" role="alert" hidden></p>
+        <div id="confirmation-details" class="manage-orders"></div>
+        <button id="more-confirmations" class="btn btn-ghost" type="button" hidden>Show earlier confirmations</button>
       </section>
       <h2 id="orders-title" hidden>Previous orders</h2>
       <form class="manage-tools" id="manage-filter" aria-labelledby="orders-title" hidden>

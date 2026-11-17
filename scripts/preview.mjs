@@ -12,6 +12,9 @@ if (!database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND nam
 if (!database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='availability_requests'").get()) {
   database.exec(readFileSync('drizzle/0001_availability_requests.sql','utf8'));
 }
+if (!database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='order_confirmations'").get()) {
+  database.exec(readFileSync('drizzle/0002_order_confirmations.sql','utf8'));
+}
 const DB = {
   prepare(sql) {
     const statement = database.prepare(sql);

@@ -25,11 +25,20 @@ const unitPrice = item => money(item.price) + (item.unit ? ' / ' + item.unit : '
 const products = new Map(catalog.map(item => [item.id, item]));
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const safe = value => String(value).replace(/[&<>"']/g, character => escapes[character]);
-const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, screen:'', opener:null, submittingRequest:false, itemQuantity:1};
+const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, screen:'', opener:null, submittingConfirmation:false, itemQuantity:1};
+const confirmedProducts = new Set();
+function isConfirmed(id) {
+  try {return confirmedProducts.has(id) || localStorage.getItem("beampak-confirmed:" + id) === "1";}
+  catch {return confirmedProducts.has(id);}
+}
+function rememberConfirmation(id) {
+  confirmedProducts.add(id);
+  try {localStorage.setItem("beampak-confirmed:" + id,"1");} catch { /* Keep the confirmation in this tab. */ }
+}
 try {
   const saved = JSON.parse(localStorage.getItem('beampak-bag')) || {};
   for (const [id, quantity] of Object.entries(saved)) {
-    if (products.get(id)?.requestable && Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity) state.cart[id] = quantity;
+    if (products.get(id)?.confirmable && !isConfirmed(id) && Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity) state.cart[id] = quantity;
   }
 } catch { /* Shopping remains available when browser storage is disabled. */ }
 const slides = [
@@ -57,7 +66,7 @@ function matchesQuery(item, query) {
 function renderCatalog() {
   if (!catalogGrid) return;
   const filtered = catalog.filter(item => (state.filter === 'all' || item.filters.includes(state.filter)) &&
-    (!state.availableOnly || item.requestable) && matchesQuery(item, state.search));
+    (!state.availableOnly || item.confirmable) && matchesQuery(item, state.search));
   const sorts = {low:(a,b)=>a.price-b.price, high:(a,b)=>b.price-a.price, name:(a,b)=>a.name.localeCompare(b.name)};
   if (sorts[state.sort]) filtered.sort(sorts[state.sort]);
   document.querySelectorAll('.filters button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.filter === state.filter)));
@@ -69,9 +78,9 @@ function renderCatalog() {
   summary.innerHTML = state.search ? 'Results for “' + safe(state.search) + '” · ' + filtered.length + ' <button data-action="clear-search" class="text-button">Clear search</button>' : '';
   catalogGrid.innerHTML = filtered.length ? filtered.map(item => {
     const colors = item.swatches.map(color => '<i style="background:' + color + '"></i>').join('');
-    const availability = item.requestable ? 'Available to request' : 'Out of stock';
-    const badge = '<span class="product-badge ' + (item.requestable ? 'stock-available' : 'stock-unavailable') + '">' + availability + '</span>';
-    const addButton = item.requestable ? '<button class="add" data-add="' + item.id + '" data-open-bag aria-label="Add ' + item.name + ' to bag">' + icon('plus') + ' Add</button>' : '';
+    const availability = item.confirmable ? 'Stock pending' : 'Out of stock';
+    const badge = '<span class="product-badge ' + (item.confirmable ? 'stock-available' : 'stock-unavailable') + '">' + availability + '</span>';
+    const addButton = item.confirmable ? '<button class="add" data-add="' + item.id + '" data-open-bag aria-label="Add ' + item.name + ' to bag">' + icon('plus') + ' Add</button>' : '';
     const old = item.old ? ' <del>' + money(item.old) + '</del>' : '';
     const productLink = (className, content, label = item.name) => item.page
       ? '<a class="' + className + '" href="' + item.page + '" aria-label="View ' + label + '">' + content + '</a>'
@@ -115,8 +124,8 @@ panel.addEventListener('close', () => {
   state.screen = '';
   state.opener?.focus({preventScroll:true});
 });
-panel.addEventListener('click', event => {if (event.target === panel && !state.submittingRequest) panel.close();});
-panel.addEventListener('cancel', event => {if (state.submittingRequest) event.preventDefault();});
+panel.addEventListener('click', event => {if (event.target === panel && !state.submittingConfirmation) panel.close();});
+panel.addEventListener('cancel', event => {if (state.submittingConfirmation) event.preventDefault();});
 function cartSubtotal() {
   return Object.entries(state.cart).reduce((sum, [id, quantity]) => sum + products.get(id).price * quantity, 0);
 }
@@ -129,23 +138,32 @@ function showCart(focusSelector) {
     const item = products.get(id);
     return '<div class="cart-row"><img src="/media/' + item.image + '" alt=""><div><h3>' + item.name + '</h3><div class="stepper"><button data-qty="' + id + '" data-step="-1" aria-label="Decrease quantity of ' + item.name + '">−</button><span>' + quantity + '</span><button data-qty="' + id + '" data-step="1" aria-label="Increase quantity of ' + item.name + '">+</button><button class="remove" data-qty="' + id + '" data-step="0">Remove</button></div></div><span class="price">' + money(item.price * quantity) + '</span></div>';
   }).join('');
-  const contents = entries.length ? lines + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="availability">Review availability request ' + icon('arrow') + '</button>'
+  const contents = entries.length ? lines + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="checkout">Continue to checkout ' + icon('arrow') + '</button>'
     : '<p>Your shopping bag is empty.</p><button class="btn btn-primary" data-action="continue">Browse the shop</button>';
   openPanel('cart', 'YOUR BAG', contents, 'drawer');
   if (focusSelector) panel.querySelector(focusSelector)?.focus();
 }
 function showProduct(id) {
   const item = products.get(id);
-  const purchase = item.requestable
-    ? '<p class="detail-stock stock-available">Available to request</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
+  const purchase = item.confirmable
+    ? '<p class="detail-stock stock-available">Stock pending</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
     : '<p class="detail-stock stock-unavailable">Out of stock</p>';
   openPanel('product', item.name, '<div class="product-detail"><img src="/media/' + item.image + '" alt="' + item.name + '"><div><p class="eyebrow">' + item.category + '</p><p class="price">' + money(item.price) + '</p><p>' + item.detail + '</p><ul>' + item.specs.map(spec => '<li>' + spec + '</li>').join('') + '</ul>' + purchase + '</div></div>', 'wide');
 }
 const phoneField = '<label>Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" required maxlength="24"></label>';
-function showAvailability() {
-  if (!Object.keys(state.cart).length) return showCart();
-  const items = Object.entries(state.cart).map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
-  openPanel('availability','REVIEW YOUR REQUEST','<form id="availability-form" class="stack"><p>Stock and delivery dates are pending confirmation. This request is free and does not reserve stock.</p><ul>' + items + '</ul>' + totals() + '<p class="form-error" role="alert" hidden></p><button type="submit" class="btn btn-primary wide-button">Submit availability request</button><button type="button" class="text-button" data-action="cart">Back to bag</button></form>','drawer');
+function showUnavailable() {
+  openPanel('result','CURRENTLY UNAVAILABLE','<p>Thanks for choosing Beampak. This item is currently unavailable. We’ve saved your selection, so there’s no need to submit again. You won’t be charged.</p><button class="btn btn-primary" data-action="continue">Continue browsing</button>');
+}
+function showCheckout() {
+  const entries = Object.entries(state.cart);
+  if (!entries.length) return showCart();
+  if (entries.some(([id])=>isConfirmed(id))) return showUnavailable();
+  const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
+  openPanel('checkout','REVIEW YOUR ORDER','<form id="confirmation-form" class="stack"><ul>' + items + '</ul>' + totals() +
+    '<label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label>City<input name="city" autocomplete="address-level2" minlength="2" maxlength="80" required></label>' +
+    '<label>Mobile number (optional)<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" maxlength="24"></label>' +
+    '<p class="checkout-note">We’ll save these details and your selected quantity. Stock and delivery are pending, and no payment is due. <a href="/support.html#privacy" target="_blank" rel="noopener">How we use your data</a></p>' +
+    '<p class="form-error" role="alert" hidden></p><button type="submit" class="btn btn-primary wide-button">Confirm order</button><button type="button" class="text-button" data-action="cart">Back to bag</button></form>','drawer');
 }
 function showTrack() {
   openPanel('track','TRACK AN ORDER','<form id="track-form" class="stack"><label>Order reference<input name="reference" placeholder="BP-XXXXXXXXXX" required maxlength="15" data-autofocus></label>' + phoneField + '<p class="form-error" role="alert" hidden></p><button class="btn btn-primary" type="submit">Find order</button></form>');
@@ -196,7 +214,7 @@ function updateSearchResults(query) {
   panel.querySelector('.search-results').innerHTML = matches.length ? matches.map(item => {
     const attributes = item.page ? '<a href="' + item.page + '"' : '<button type="button" data-product="' + item.id + '"';
     const endTag = item.page ? '</a>' : '</button>';
-    return attributes + ' class="search-result"><img src="/media/' + item.image + '" alt=""><span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.requestable ? 'Available to request' : 'Out of stock') + '</small></span>' + endTag;
+    return attributes + ' class="search-result"><img src="/media/' + item.image + '" alt=""><span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.confirmable ? 'Stock pending' : 'Out of stock') + '</small></span>' + endTag;
   }).join('') : '<p>No matching products.</p>';
 }
 function toggleMenu(open) {
@@ -211,7 +229,7 @@ const actions = {
   close:()=>panel.close(),
   menu:()=>toggleMenu(!find('.nav').classList.contains('open')),
   film:()=>openPanel('film','AFTER DARK','<div class="film"><video controls playsinline preload="none" poster="/media/hero.jpg" src="https://videos.pexels.com/video-files/29498826/12698158_4070_2160_24fps.mp4"></video><p><a href="' + filmPage + '" target="_blank" rel="noopener">Watch on Pexels · Michael Pronin</a></p></div>','wide'),
-  availability:showAvailability,
+  checkout:showCheckout,
   'copy-reference':async()=>{
     const feedback = panel.querySelector('.receipt-feedback');
     try {
@@ -235,7 +253,7 @@ const actions = {
 };
 document.addEventListener('click', event => {
   const control = event.target.closest('[data-action],[data-filter],[data-product],[data-add],[data-qty],[data-slide],[data-gallery],[data-piece-count]');
-  if (!control || state.submittingRequest) return;
+  if (!control || state.submittingConfirmation) return;
   const {action,filter,product,add,qty,step,slide,gallery,pieceCount} = control.dataset;
   if (action) actions[action]?.();
   else if (filter) {
@@ -245,7 +263,8 @@ document.addEventListener('click', event => {
     toggleMenu(false);
   } else if (product) showProduct(product);
   else if (add) {
-    if (!products.get(add)?.requestable) return;
+    if (!products.get(add)?.confirmable) return;
+    if (isConfirmed(add)) return showUnavailable();
     const amount = control.closest('[data-purchase],[data-mobile-purchase]') ? state.itemQuantity : 1;
     if (amount === null) return;
     const quantity = (state.cart[add] || 0) + amount;
@@ -302,7 +321,7 @@ function requestVisitor() {
 }
 document.addEventListener('submit', async event => {
   const form = event.target;
-  if (!['search-form','availability-form','track-form'].includes(form.id)) return;
+  if (!['search-form','confirmation-form','track-form'].includes(form.id)) return;
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
   if (form.id === 'search-form') {
@@ -314,38 +333,40 @@ document.addEventListener('submit', async event => {
     renderCatalog();
     return actions.continue();
   }
-  const interest = form.id === 'availability-form';
+  const confirmation = form.id === 'confirmation-form';
   const error = form.querySelector('.form-error');
   const button = form.querySelector('button[type="submit"]');
-  if (state.submittingRequest || button.disabled) return;
+  if (state.submittingConfirmation || button.disabled) return;
   error.hidden = true;
   button.disabled = true;
   const closeButton = panel.querySelector('[data-action="close"]');
   const backButton = form.querySelector('[data-action="cart"]');
   const idleLabel = button.textContent;
-  if (interest) {
-    state.submittingRequest = true;
+  if (confirmation) {
+    state.submittingConfirmation = true;
     closeButton.disabled = true;
     backButton.disabled = true;
-    button.textContent = 'Saving request…';
+    button.textContent = 'Saving confirmation…';
   }
+  let confirmedProduct;
   try {
-    if (interest) {
+    if (confirmation) {
       const entry = Object.entries(state.cart)[0];
       if (!entry) return showCart();
       const [productId,quantity] = entry;
+      confirmedProduct = productId;
       Object.assign(data,{productId,quantity,expectedSubtotal:cartSubtotal(),visitorId:requestVisitor(),campaign});
     }
-    const response = await fetch(interest ? '/api/interest' : '/api/orders/lookup',{
+    const response = await fetch(confirmation ? '/api/order-confirmations' : '/api/orders/lookup',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(20000)
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Please try again.');
-    if (interest) {
-      if (result.saved !== true) throw new Error('Could not confirm your request. Please try again.');
-      state.cart = {};
-      persistCart();
-      openPanel('result','THANKS FOR YOUR INTEREST','<p>We’ve noted your preferred quantity. We’re still finalizing stock and delivery dates, and your request helps us plan our first batch.</p><p>No order was placed and no payment is due.</p><button class="btn btn-primary" data-action="continue">Continue browsing</button>');
+    if (confirmation) {
+      if (result.saved !== true) throw new Error('Could not save your confirmation. Please try again.');
+      rememberConfirmation(confirmedProduct);
+      setQuantity(confirmedProduct,0);
+      showUnavailable();
     } else if (panel.open && panel.contains(form)) {
       if (!result.reference || !Array.isArray(result.items) || !Number.isSafeInteger(result.total)) throw new Error('Could not retrieve this order. Please try again.');
       showResult(result);
@@ -356,8 +377,8 @@ document.addEventListener('submit', async event => {
       : failure.message;
     error.hidden = false;
   } finally {
-    if (interest) {
-      state.submittingRequest = false;
+    if (confirmation) {
+      state.submittingConfirmation = false;
       closeButton.disabled = false;
       backButton.disabled = false;
     }
@@ -376,11 +397,11 @@ if (itemPage || featuredProduct) {
   const item = products.get(itemPage?.dataset.itemPage ?? featuredProduct.dataset.feature);
   document.querySelectorAll('[data-item-price]').forEach(label => {label.textContent = unitPrice(item);});
   const stock = find('[data-item-stock]');
-  stock.textContent = item.requestable ? 'Available to request' : 'Out of stock';
-  stock.classList.toggle('stock-unavailable', !item.requestable);
+  stock.textContent = item.confirmable ? 'Stock pending' : 'Out of stock';
+  stock.classList.toggle('stock-unavailable', !item.confirmable);
   if (itemPage) {
-    find('[data-purchase]').hidden = !item.requestable;
-    find('[data-mobile-purchase]').hidden = !item.requestable;
+    find('[data-purchase]').hidden = !item.confirmable;
+    find('[data-mobile-purchase]').hidden = !item.confirmable;
     const input = find('#item-quantity');
     input.max = maxOrderQuantity;
     find('#quantity-range').textContent = 'Whole numbers from 1 to ' + maxOrderQuantity;

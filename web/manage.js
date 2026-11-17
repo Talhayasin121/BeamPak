@@ -11,6 +11,11 @@ const interest = find('#manage-interest');
 const interestTotals = find('#interest-totals');
 const interestCampaigns = find('#interest-campaigns');
 const refreshInterest = find('#refresh-interest');
+const priorRequests = find('#prior-requests');
+const confirmationDetails = find('#confirmation-details');
+const confirmationError = find('#confirmation-error');
+const moreConfirmations = find('#more-confirmations');
+let confirmationCursor;
 const ordersTitle = find('#orders-title');
 const ownerOpen = find('#owner-open');
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
@@ -32,6 +37,12 @@ function lock() {
   ordersTitle.hidden = true;
   interestTotals.textContent = '';
   interestCampaigns.replaceChildren();
+  confirmationDetails.replaceChildren();
+  priorRequests.hidden = true;
+  confirmationError.hidden = true;
+  moreConfirmations.hidden = true;
+  moreConfirmations.disabled = false;
+  confirmationCursor = null;
   refreshInterest.disabled = false;
   managedOrders = [];
   cursor = null;
@@ -66,27 +77,50 @@ function showError(failure) {
     : failure.message;
 }
 const formatCount = count => Number(count).toLocaleString('en-PK');
-async function loadInterest(sequence) {
+const countLabel = (count,label) => formatCount(count) + ' ' + label + (Number(count) === 1 ? '' : 's');
+const campaignLabel = data => [data.source,data.medium,data.campaign].filter(Boolean).join(' / ') || 'Untagged';
+
+async function loadConfirmations(sequence,append=false) {
+  if (append && !confirmationCursor) return;
   refreshInterest.disabled = true;
-  interestCampaigns.replaceChildren();
-  interestTotals.textContent = 'Loading requests…';
+  moreConfirmations.disabled = true;
+  confirmationError.hidden = true;
+  if (!append) interestTotals.textContent = 'Loading confirmations…';
   try {
-    const summary = await request('/api/manage/interest');
+    const suffix = append ? '?after=' + encodeURIComponent(confirmationCursor) : '';
+    const summary = await request('/api/manage/order-confirmations' + suffix);
     if (sequence !== requestNumber) return;
-    interestTotals.textContent = formatCount(summary.requests) + ' requests · ' + formatCount(summary.pieces) + ' pieces';
-    for (const campaign of summary.campaigns) {
+    interestTotals.textContent = countLabel(summary.confirmations,'confirmation') + ' · ' + countLabel(summary.pieces,'piece');
+    priorRequests.hidden = !summary.earlierRequests;
+    priorRequests.textContent = countLabel(summary.earlierRequests,'request') + ' from the previous availability form.';
+    interestCampaigns.replaceChildren(...summary.campaigns.map(campaign => {
       const line = document.createElement('li');
-      const label = [campaign.source,campaign.medium,campaign.campaign].filter(Boolean).join(' / ') || 'Untagged';
-      line.textContent = label + ' · ' + formatCount(campaign.requests) + ' requests · ' + formatCount(campaign.pieces) + ' pieces';
-      interestCampaigns.append(line);
-    }
+      line.textContent = campaignLabel(campaign) + ' · ' + countLabel(campaign.confirmations,'confirmation') + ' · ' + countLabel(campaign.pieces,'piece');
+      return line;
+    }));
+    if (!append) confirmationDetails.replaceChildren();
+    const cards = summary.details.map(record =>
+      '<article class="manage-order"><h3>' + safe(record.name) + '</h3><p>' + safe(record.city) +
+      (record.phone ? ' · ' + safe(record.phone) : '') + '</p><p>' + safe(record.product) + ' × ' + Number(record.quantity) +
+      ' · Rs. ' + formatCount(record.quantity * record.unitPrice) + '</p><p>' + safe(record.confirmedAt) + ' UTC</p><p>' + safe(campaignLabel(record)) + '</p></article>'
+    ).join('');
+    confirmationDetails.insertAdjacentHTML('beforeend',cards);
+    confirmationCursor = summary.next;
+    moreConfirmations.hidden = !confirmationCursor;
   } catch {
-    if (sequence === requestNumber) interestTotals.textContent = 'Could not load availability requests. Try refreshing.';
+    if (sequence !== requestNumber) return;
+    if (!append) interestTotals.textContent = '';
+    confirmationError.textContent = 'Could not load checkout confirmations. Try refreshing.';
+    confirmationError.hidden = false;
   } finally {
-    if (sequence === requestNumber) refreshInterest.disabled = false;
+    if (sequence === requestNumber) {
+      refreshInterest.disabled = false;
+      moreConfirmations.disabled = false;
+    }
   }
 }
-refreshInterest.addEventListener('click', () => loadInterest(requestNumber));
+refreshInterest.addEventListener('click', () => loadConfirmations(requestNumber));
+moreConfirmations.addEventListener('click', () => loadConfirmations(requestNumber,true));
 function renderOrders() {
   result.textContent = managedOrders.length ? managedOrders.length + ' order(s) shown' : 'No orders found.';
   list.innerHTML = managedOrders.map(order => {
@@ -119,11 +153,12 @@ async function loadOrders({append=false, silent=false}={}) {
     filter.hidden = false;
     ordersTitle.hidden = false;
     interest.hidden = false;
-    void loadInterest(sequence);
+    void loadConfirmations(sequence);
   } catch (failure) {
     if (sequence !== requestNumber) return;
     result.textContent = '';
     refreshInterest.disabled = false;
+    moreConfirmations.disabled = false;
     if (!silent || failure.status !== 401) showError(failure);
   } finally {
     if (sequence === requestNumber) more.disabled = false;
