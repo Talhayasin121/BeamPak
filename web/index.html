@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0b10">
+  <meta name="description" content="Shop multicolour LEDs, underglow and accessories for cars and motorcycles at Beampak.">
+  <title>Beampak — Automotive Lighting & Accessories</title>
+  <link rel="icon" href="/media/icon.png">
+  <link rel="stylesheet" href="/store.css">
+  <script type="module" src="/store.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="announcement"><span data-icon="bolt"></span> Multicolour LED pods · Rs. 999 per piece</div>
+  <header class="header">
+    <div class="shell header-inner">
+      <a class="brand" href="/" aria-label="Beampak home"><span class="brand-mark" aria-hidden="true"></span><span>BEAM<i>PAK</i></span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#shop" data-filter="all" class="nav-active">Shop All</a>
+        <a href="#shop" data-filter="car">Car Accessories</a>
+        <a href="#shop" data-filter="bike">Bike Accessories</a>
+        <a href="#shop" data-filter="lights">LED Lighting</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn header-search" data-action="search" aria-label="Search products"><span data-icon="search"></span><span>Search</span></button>
+        <button class="icon-btn bag-btn" data-action="cart" aria-label="Open shopping bag"><span data-icon="bag"></span><span id="bag-count">0</span></button>
+        <button class="icon-btn mobile-toggle" data-action="menu" aria-label="Open navigation" data-icon="menu" aria-expanded="false"></button>
+      </div>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero" id="after-dark" aria-label="Beampak After Dark collection">
+      <img class="hero-image" src="/media/hero.jpg" alt="Modified sports coupe with purple underglow at night" fetchpriority="high">
+      <div class="hero-shade"></div>
+      <div class="shell hero-inner">
+        <div class="hero-content">
+          <p class="eyebrow"><span></span><span id="hero-kicker">THE AFTER DARK COLLECTION</span></p>
+          <h1 id="hero-title">LIGHT UP<br><em>YOUR RIDE.</em></h1>
+          <p id="hero-description">Multicolour LEDs and accessories for the cars and bikes you make your own.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" id="hero-link" href="/products/multicolour-led-pod-kit">Shop LED Pods <span data-icon="arrow"></span></a>
+            <button class="btn btn-ghost" data-action="film"><span data-icon="play"></span> Watch the film</button>
+          </div>
+        </div>
+        <div class="hero-footer">
+          <p class="hero-scene" id="hero-scene" aria-live="polite"></p>
+          <div class="slide-buttons" role="group" aria-label="Choose an After Dark scene">
+            <button data-slide="0" aria-current="true"><img src="/media/hero.jpg" alt="" width="64" height="42"><span>Original</span></button>
+            <button data-slide="1" aria-label="2025 Honda Civic RS in Lahore" aria-current="false"><img src="/media/hero-civic-2025.jpg" alt="" width="64" height="42" loading="lazy"><span>Civic RS</span></button>
+            <button data-slide="2" aria-label="2025 Toyota Corolla Altis X Grande in Lahore" aria-current="false"><img src="/media/hero-grande-2025.jpg" alt="" width="64" height="42" loading="lazy"><span>Grande</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="services">
+      <div class="shell service-list">
+        <div><span data-icon="truck"></span><p><strong>Shipping updates</strong><small>Delivery dates to be confirmed</small></p></div>
+        <div><span data-icon="wallet"></span><p><strong>No payment required</strong><small>See details at checkout</small></p></div>
+        <div><span data-icon="bolt"></span><p><strong>Choose your quantity</strong><small>Individual LED pods</small></p></div>
+        <div><span data-icon="headphones"></span><p><strong>Already ordered?</strong><small><button class="text-button" data-action="track">Track your order</button></small></p></div>
+      </div>
+    </div>
+    <section class="feature shell" aria-labelledby="feature-title">
+      <div class="feature-frame">
+        <a class="feature-image" href="/products/multicolour-led-pod-kit#in-use" aria-label="View the LED pod installation illustration">
+          <img src="/media/led-pod-civic-detail.jpg" width="1100" height="733" loading="lazy" alt="Purple LED pod shown lighting a car footwell in an installation illustration">
+          <span>Installation illustration</span>
+        </a>
+        <div class="feature-copy" data-feature="rgb-pod">
+          <p class="eyebrow"><span></span> CAR &amp; BIKE LIGHTING</p>
+          <h2 id="feature-title">MULTICOLOUR<br><em>LED POD.</em></h2>
+          <p>Rechargeable multicolour lights for car footwells and parked motorcycle displays. Choose how many pods you need.</p>
+          <p class="feature-price"><strong data-item-price></strong><span class="stock-label" data-item-stock></span></p>
+          <a class="btn btn-primary" href="/products/multicolour-led-pod-kit">Choose your quantity <span data-icon="arrow"></span></a>
+        </div>
+      </div>
+    </section>
+    <section class="catalog shell" id="shop">
+      <div class="section-head">
+        <div><p class="eyebrow"><span></span> THE BEAMPAK GARAGE</p><h2>SHOP THE <em>GEAR.</em></h2></div>
+        <p class="section-caption" id="catalog-count" aria-live="polite"></p>
+      </div>
+      <div class="catalog-controls">
+        <div class="filters" aria-label="Filter products">
+          <button data-filter="all" aria-pressed="true">All Products</button>
+          <button data-filter="lights" aria-pressed="false">LED Lighting</button>
+          <button data-filter="car" aria-pressed="false">Car Accessories</button>
+          <button data-filter="bike" aria-pressed="false">Bike Accessories</button>
+        </div>
+        <div class="catalog-options"><label class="stock-filter"><input id="stock-only" type="checkbox"> Show LED pod only</label><label class="sort"><span class="sr-only">Sort products</span><select id="sort"><option value="featured">Featured</option><option value="low">Price: Low to high</option><option value="high">Price: High to low</option><option value="name">Name: A to Z</option></select></label></div>
+      </div>
+      <p class="search-summary" id="search-summary" hidden></p>
+      <div class="product-grid" id="products"></div>
+      <noscript><p>Enable JavaScript to browse the catalog and use checkout, or <a href="https://wa.me/923309153823">contact Beampak on WhatsApp</a>.</p></noscript>
+    </section>
+    <section class="collections shell" id="collections">
+      <div class="section-head"><div><p class="eyebrow"><span></span> COLLECTIONS</p><h2>SHOP BY <em>RIDE.</em></h2></div></div>
+      <div class="collection-grid">
+        <a class="collection car" href="#shop" data-filter="car"><img src="/media/car.jpg" loading="lazy" alt=""><div><h3>CAR ACCESSORIES</h3><span>Shop cars <span data-icon="arrow"></span></span></div></a>
+        <a class="collection bike" href="#shop" data-filter="bike"><img src="/media/bike.jpg" loading="lazy" alt=""><div><h3>BIKE ACCESSORIES</h3><span>Shop bikes <span data-icon="arrow"></span></span></div></a>
+      </div>
+    </section>
+  </main>
+  <footer class="footer">
+    <div class="shell footer-main">
+      <div><a class="brand" href="/" aria-label="Beampak home"><span class="brand-mark" aria-hidden="true"></span><span>BEAM<i>PAK</i></span></a><p>Automotive lighting and accessories<br>for cars and motorcycles.</p></div>
+      <div><h2>Shop</h2><a href="#shop" data-filter="lights">LED Lighting</a><a href="#shop" data-filter="car">Car Accessories</a><a href="#shop" data-filter="bike">Bike Accessories</a></div>
+      <div><h2>Help</h2><a href="/support.html">Availability &amp; privacy</a><button data-action="help">Availability &amp; Fitment</button><button data-action="track">Track an Order</button><button data-action="credits">Photo &amp; Film Credits</button></div>
+    </div>
+    <div class="shell footer-bottom"><span>© Beampak</span><span>Pakistan · PKR</span></div>
+  </footer>
+  <a class="whatsapp-widget" href="https://wa.me/923309153823" target="_blank" rel="noopener noreferrer" aria-label="Chat with Beampak on WhatsApp">
+    <span data-icon="chat" aria-hidden="true"></span>
+    <span>WhatsApp</span>
+  </a>
+  <dialog id="panel" class="panel" aria-labelledby="panel-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
