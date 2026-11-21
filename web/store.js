@@ -183,20 +183,53 @@ function showResult(order) {
   openPanel('result', 'ORDER DETAILS', '<p class="order-ref">' + reference + '</p><p>Status <strong>' + status + '</strong></p><ul>' + items + '</ul><p><strong>' + money(order.total) + '</strong> · Cash on delivery</p>' + '<div class="receipt-actions"><button class="btn btn-ghost" data-action="copy-reference">Copy reference</button><a class="btn btn-ghost" href="' + support + '" target="_blank" rel="noopener noreferrer">WhatsApp support</a></div><p class="receipt-feedback" role="status"></p><button class="btn btn-primary" data-action="continue">Continue shopping</button>');
 }
 const gallery = [
-  {image:'rgb-pods.jpg', alt:'Two LED pods, a remote, a split USB lead and mounting accessories', caption:'Reference kit photo'},
-  {image:'led-pod-civic-detail.jpg', alt:'Purple LED pod illuminating a car footwell', caption:'Car footwell · installation illustration'},
-  {image:'led-pod-bike-detail.jpg', alt:'Blue LED pod illuminating a motorcycle side panel', caption:'Motorcycle · installation illustration'}
+  {quantity:true},
+  {image:'led-pod-civic-detail.jpg',alt:'Purple LED pod illuminating a car footwell',caption:'Car footwell · installation illustration'},
+  {image:'led-pod-bike-detail.jpg',alt:'Blue LED pod illuminating a motorcycle side panel',caption:'Motorcycle · installation illustration'},
+  {image:'rgb-pods.jpg',alt:'Original two-pod reference kit with remote, charging cable and mounts',caption:'Original two-pod kit · accessory reference'}
 ];
+function renderQuantityPreview() {
+  const container=find('#quantity-preview');
+  const quantity=state.itemQuantity;
+  const valid=Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity;
+  container.replaceChildren();
+  if(valid) {
+    const columns=quantity<=2?quantity:quantity<=4?2:quantity<=9?3:4;
+    container.style.setProperty('--pod-columns',columns);
+    container.dataset.count=quantity;
+    container.setAttribute('aria-label',quantity+' multicolour LED '+(quantity===1?'pod':'pods'));
+    const pods=Array.from({length:quantity},()=>{
+      const image=document.createElement('img');
+      image.src='/media/rgb-pod-single.png';
+      image.alt='';
+      image.width=1536;
+      image.height=1024;
+      image.decoding='async';
+      return image;
+    });
+    container.append(...pods);
+    find('#gallery-caption').textContent=quantity+' LED '+(quantity===1?'pod':'pods')+' · quantity illustration';
+  } else {
+    delete container.dataset.count;
+    container.style.removeProperty('--pod-columns');
+    container.setAttribute('aria-label','Choose a valid quantity to preview the pods');
+    container.textContent='Enter a whole number from 1 to '+maxOrderQuantity+' to preview your pods.';
+    find('#gallery-caption').textContent='Quantity preview';
+  }
+}
 function showGallery(index) {
-  recordActivity('gallery_view',{index});
-  const photo = gallery[index];
-  const image = find('#gallery-image');
-  image.src = '/media/' + photo.image;
-  image.alt = photo.alt;
-  find('#gallery-caption').textContent = photo.caption;
-  document.querySelectorAll('[data-gallery]').forEach(button => {
-    button.setAttribute('aria-pressed', String(Number(button.dataset.gallery) === index));
-  });
+  const photo=gallery[index];
+  if(!photo)return;
+  const image=find('#gallery-image');
+  find('#quantity-preview').hidden=!photo.quantity;
+  image.hidden=Boolean(photo.quantity);
+  if(photo.quantity)renderQuantityPreview();
+  else {
+    image.src='/media/'+photo.image;
+    image.alt=photo.alt;
+    find('#gallery-caption').textContent=photo.caption;
+  }
+  document.querySelectorAll('[data-gallery]').forEach(button=>button.setAttribute('aria-pressed',String(Number(button.dataset.gallery)===index)));
 }
 function renderItemQuantity() {
   const input = find('#item-quantity');
@@ -204,6 +237,7 @@ function renderItemQuantity() {
   state.itemQuantity = quantity;
   input.setAttribute('aria-invalid', String(quantity === null));
   const item = products.get(itemPage.dataset.itemPage);
+  showGallery(0);
   const amount = quantity === null ? '—' : money(item.price * quantity);
   document.querySelectorAll('[data-item-subtotal]').forEach(total => {total.textContent = amount;});
   document.querySelectorAll('[data-piece-count]').forEach(button => {
@@ -291,7 +325,7 @@ document.addEventListener('click', event => {
     recordActivity(next ? 'bag_quantity' : 'bag_removed',{productId:qty,quantity:next});
     showCart('[data-qty="' + qty + '"][data-step="' + step + '"]');
   } else if (slide !== undefined) showSlide(Number(slide));
-  else if (gallery !== undefined) showGallery(Number(gallery));
+  else if (gallery !== undefined) {recordActivity('gallery_view',{index:Number(gallery)});showGallery(Number(gallery));}
   else if (pieceCount !== undefined) {
     recordActivity('quantity_selected',{quantity:Number(pieceCount)});
     find('#item-quantity').value = pieceCount;

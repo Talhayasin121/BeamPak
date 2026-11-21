@@ -19,7 +19,7 @@ if (siteUrl) {
 }
 for (const [filename,path,image] of [
   ['index.html','/','/media/hero-civic-2025.jpg'],
-  ['product.html','/products/multicolour-led-pod-kit','/media/rgb-pods.jpg']
+  ['product.html','/products/multicolour-led-pod-kit','/media/rgb-pod-single.png']
 ]) {
   const file = new URL(filename,directory);
   let html = readFileSync(file,'utf8');
