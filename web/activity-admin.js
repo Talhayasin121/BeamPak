@@ -1,3 +1,5 @@
+import {downloadCsv} from './admin-data.js';
+
 const find=selector=>document.querySelector(selector);
 const section=find('#visitor-activity');
 const summary=find('#activity-summary');
@@ -7,11 +9,14 @@ const title=find('#activity-visit-title');
 const events=find('#activity-events');
 const feedback=find('#activity-feedback');
 const refresh=find('#activity-refresh');
-const period=find('#activity-period');
+const form=find('#activity-filter');
+const exportButton=find('#activity-export');
+const exportEventsButton=find('#activity-export-events');
+const exportStatus=find('#activity-export-status');
 const moreVisits=find('#activity-more-visits');
 const moreEvents=find('#activity-more-events');
 let requester, authorized=()=>false, generation=0, detailRequest=0;
-let cursor, eventCursor, selectedVisit, visitRecords=[];
+let cursor, eventCursor, selectedVisit, visitRecords=[], filters={days:'7'}, snapshot=null, exportGeneration=0;
 const labels={
   page_view:'Page viewed',product_view:'Product viewed',product_open:'Product details opened',
   bag_view:'Shopping bag opened',add_to_bag:'Added to bag',bag_quantity:'Bag quantity changed',bag_removed:'Removed from bag',
@@ -36,26 +41,25 @@ function describe(details) {
   for(const key of ['filter','sort','section','choice']) if(details[key]) parts.push(details[key]);
   return parts.join(' · ');
 }
+const attribution=visit=>[visit.context.campaign.source,visit.context.campaign.name,visit.context.campaign.content,visit.context.campaign.adId?'Ad '+visit.context.campaign.adId:''].filter(Boolean).join(' / ') || visit.context.referrer || 'Direct visit';
+const stage=visit=>visit.submitted?'Submitted':visit.checkout?'Reached checkout':'Browsing';
 function renderVisits() {
   visits.replaceChildren(...visitRecords.map(visit=>{
-    const button=document.createElement('button');
+    const row=document.createElement('tr');
+    row.setAttribute('aria-selected',String(selectedVisit===visit.id));
+    for(const value of [visit.visitor.slice(0,8),visit.context.device,stage(visit),visit.pages,visit.events,time(visit.lastAt),attribution(visit)]) {
+      const cell=document.createElement('td');
+      cell.textContent=String(value);
+      row.append(cell);
+    }
+    const cell=document.createElement('td'), button=document.createElement('button');
     button.type='button';
-    button.className='activity-visit';
+    button.className='text-button';
     button.dataset.visit=visit.id;
-    button.setAttribute('aria-pressed',String(selectedVisit===visit.id));
-    const heading=document.createElement('strong');
-    heading.textContent='Browser '+visit.visitor.slice(0,8);
-    const status=document.createElement('span');
-    status.textContent=visit.submitted?'Submitted':visit.checkout?'Reached checkout':'Browsing';
-    const details=document.createElement('span');
-    details.textContent=visit.context.device+' · '+count(visit.pages,'page view')+' · '+count(visit.events,'event');
-    const date=document.createElement('span');
-    date.textContent='Last activity '+time(visit.lastAt);
-    const attribution=document.createElement('span');
-    const campaign=visit.context.campaign;
-    attribution.textContent=[campaign.source,campaign.name,campaign.content,campaign.adId?'Ad '+campaign.adId:''].filter(Boolean).join(' / ') || visit.context.referrer || 'Direct visit';
-    button.append(heading,status,details,date,attribution);
-    return button;
+    button.textContent='View activity';
+    cell.append(button);
+    row.append(cell);
+    return row;
   }));
 }
 async function loadVisits(append=false) {
@@ -67,12 +71,14 @@ async function loadVisits(append=false) {
   feedback.textContent='Loading visitor activity…';
   if(!append) {
     cursor=null;
+    snapshot=null;
     visitRecords=[];
     selectedVisit=null;
     timeline.hidden=true;
     events.replaceChildren();
   }
-  const params=new URLSearchParams({days:period.value});
+  const params=new URLSearchParams(filters);
+  if(append && snapshot)params.set('until',snapshot);
   if(append && cursor) {
     params.set('beforeTime',cursor.at);
     params.set('beforeSession',cursor.sessionId);
@@ -80,8 +86,9 @@ async function loadVisits(append=false) {
   try {
     const report=await requester('/api/manage/activity?'+params);
     if(current!==generation || !authorized()) return;
+    snapshot=report.until;
     const values=report.summary;
-    summary.textContent=count(values.visitors,'browser')+' · '+count(values.visits,'visit')+' · '+count(values.pages,'page view')+' · '+count(values.checkouts,'visit')+' reached checkout · '+count(values.leads,'saved confirmation');
+    summary.textContent=count(values.visitors,'browser')+' · '+count(values.visits,'visit')+' · '+count(values.pages,'page view')+' · '+count(values.checkouts,'visit')+' reached checkout · '+count(values.submitted,'submitted visit');
     visitRecords=append?visitRecords.concat(report.visits.filter(visit=>!visitRecords.some(existing=>existing.id===visit.id))):report.visits;
     cursor=report.next;
     moreVisits.hidden=!cursor;
@@ -101,25 +108,26 @@ async function loadTimeline(id,append=false) {
   const current=++detailRequest;
   selectedVisit=id;
   const visit=visitRecords.find(item=>item.id===id);
-  title.textContent='Visit from browser '+visit.visitor.slice(0,8)+' · '+time(visit.startedAt);
+  title.textContent='Visit activity · '+time(visit.startedAt);
+  find('#activity-visit-id').textContent='Visit '+visit.id+' · Browser '+visit.visitor;
   timeline.hidden=false;
   moreEvents.disabled=true;
   if(!append) {events.replaceChildren();eventCursor=null;}
   const params=new URLSearchParams({session:id});
+  if(snapshot)params.set('until',snapshot);
   if(append && eventCursor)params.set('after',eventCursor);
   try {
     const report=await requester('/api/manage/activity?'+params);
     if(current!==detailRequest || !authorized())return;
     for(const event of report.events) {
-      const item=document.createElement('li');
-      const at=document.createElement('time');
-      at.dateTime=event.at;
-      at.textContent=new Date(event.at).toLocaleString('en-PK',{dateStyle:'medium',timeStyle:'medium'});
-      const text=document.createElement('span');
-      const detail=describe(event.details);
-      text.textContent=(labels[event.name]||event.name)+' · '+event.page+(detail?' · '+detail:'');
-      item.append(at,text);
-      events.append(item);
+      const row=document.createElement('tr');
+      const at=new Date(event.at).toLocaleString('en-PK',{dateStyle:'medium',timeStyle:'medium'});
+      for(const value of [at,labels[event.name]||event.name,event.page,describe(event.details)]) {
+        const cell=document.createElement('td');
+        cell.textContent=value;
+        row.append(cell);
+      }
+      events.append(row);
     }
     eventCursor=report.next;
     moreEvents.hidden=!eventCursor;
@@ -134,12 +142,23 @@ async function loadTimeline(id,append=false) {
 export function loadActivity(request,isAuthorized) {
   requester=request;
   authorized=isAuthorized;
+  exportGeneration++;
+  exportButton.disabled=false;
+  exportEventsButton.disabled=false;
   section.hidden=false;
   return loadVisits();
 }
 export function resetActivity() {
   generation++;
   detailRequest++;
+  exportGeneration++;
+  exportButton.disabled=false;
+  exportEventsButton.disabled=false;
+  exportStatus.textContent='';
+  form.reset();
+  filters={days:'7'};
+  snapshot=null;
+  find('#activity-visit-id').textContent='';
   requester=null;
   authorized=()=>false;
   visitRecords=[];
@@ -157,10 +176,57 @@ export function resetActivity() {
   moreEvents.hidden=true;
 }
 refresh.addEventListener('click',()=>loadVisits());
-period.addEventListener('change',()=>loadVisits());
+form.addEventListener('submit',event=>{event.preventDefault();filters=Object.fromEntries(new FormData(form));loadVisits();});
+find('#activity-reset').addEventListener('click',()=>{form.reset();filters={days:'7'};loadVisits();});
 moreVisits.addEventListener('click',()=>loadVisits(true));
 moreEvents.addEventListener('click',()=>loadTimeline(selectedVisit,true));
 visits.addEventListener('click',event=>{
   const visit=event.target.closest('[data-visit]')?.dataset.visit;
   if(visit)loadTimeline(visit);
 });
+
+async function exportActivity(kind) {
+  if(!requester || !authorized() || exportButton.disabled)return;
+  if(kind==='events' && !selectedVisit)return;
+  const current=++exportGeneration, selectedFilters={...filters}, visitId=selectedVisit;
+  let until=kind==='events'?snapshot:null, next=null;
+  const records=new Map();
+  exportButton.disabled=true;
+  exportEventsButton.disabled=true;
+  exportStatus.textContent='Preparing CSV…';
+  try {
+    do {
+      const params=new URLSearchParams(kind==='events'?{session:visitId}:{...selectedFilters,limit:'200'});
+      if(until)params.set('until',until);
+      if(next && kind==='events')params.set('after',next);
+      if(next && kind==='visits'){params.set('beforeTime',next.at);params.set('beforeSession',next.sessionId);}
+      const report=await requester('/api/manage/activity?'+params);
+      if(current!==exportGeneration || !authorized())return;
+      until=report.until;
+      for(const record of (kind==='events'?report.events:report.visits))records.set(record.id,record);
+      next=report.next;
+      exportStatus.textContent=count(records.size,'row')+' prepared…';
+    } while(next);
+    let rows, filename;
+    if(kind==='events') {
+      rows=[['Event ID','Visit ID','Occurred at (UTC)','Action','Page','Details']];
+      for(const record of records.values())rows.push([record.id,visitId,record.at,labels[record.name]||record.name,record.page,describe(record.details)]);
+      filename='beampak-visit-'+visitId+'.csv';
+    } else {
+      rows=[['Visit ID','Browser ID','Device','Stage','Started at (UTC)','Last activity (UTC)','Page views','Events','Source','Medium','Campaign','Ad content','Audience','Campaign ID','Ad set ID','Ad ID','Referrer hostname']];
+      for(const record of records.values()) {
+        const tags=record.context.campaign;
+        rows.push([record.id,record.visitor,record.context.device,stage(record),record.startedAt,record.lastAt,record.pages,record.events,tags.source,tags.medium,tags.name,tags.content,tags.term,tags.campaignId,tags.adsetId,tags.adId,record.context.referrer]);
+      }
+      filename='beampak-visits-'+new Date().toISOString().slice(0,10)+'.csv';
+    }
+    downloadCsv(filename,rows);
+    exportStatus.textContent=count(records.size,'row')+' exported.';
+  } catch {
+    if(current===exportGeneration && authorized())exportStatus.textContent='Export failed. Please try again.';
+  } finally {
+    if(current===exportGeneration){exportButton.disabled=false;exportEventsButton.disabled=false;}
+  }
+}
+exportButton.addEventListener('click',()=>exportActivity('visits'));
+exportEventsButton.addEventListener('click',()=>exportActivity('events'));

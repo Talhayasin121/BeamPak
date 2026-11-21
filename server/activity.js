@@ -48,27 +48,45 @@ export async function recordActivityBatch(data,query) {
 }
 export async function getActivityReport(request,query) {
   const params = new URL(request.url).searchParams;
-  const session = params.get('session');
-  const after = params.get('after');
+  const until = params.get('until') || new Date().toISOString();
+  if (!/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(until) || !Number.isFinite(Date.parse(until))) return activityResponse({error:'Choose a valid report date.'},400);
+  const session = params.get('session'), after = params.get('after');
   if (session) {
     if (!activityUuid.test(session) || (after && !activityUuid.test(after))) return activityResponse({error:'Choose a valid visit.'},400);
-    const filter = after ? ' AND (occurred_at,id) > (SELECT occurred_at,id FROM visitor_events WHERE id = $2)' : '';
-    const rows=await query('SELECT id,name,page,details,occurred_at FROM visitor_events WHERE session_id = $1' + filter + ' ORDER BY occurred_at,id LIMIT 101',after ? [session,after] : [session]);
+    const filter = after ? ' AND (occurred_at,id) > (SELECT occurred_at,id FROM visitor_events WHERE id = $3)' : '';
+    const rows=await query('SELECT id,name,page,details,occurred_at FROM visitor_events WHERE session_id = $1 AND received_at <= $2' + filter + ' ORDER BY occurred_at,id LIMIT 101',after ? [session,until,after] : [session,until]);
     const events=rows.slice(0,100);
-    return activityResponse({events:events.map(row=>({id:row.id,name:row.name,page:row.page,details:JSON.parse(row.details),at:row.occurred_at})),next:rows.length > events.length ? events.at(-1).id : null});
+    return activityResponse({until,events:events.map(row=>({id:row.id,name:row.name,page:row.page,details:JSON.parse(row.details),at:row.occurred_at})),next:rows.length > events.length ? events.at(-1).id : null});
   }
-  const days=Number(params.get('days') || 7);
-  if (![0,1,7,30].includes(days)) return activityResponse({error:'Choose a valid activity period.'},400);
-  const since=days ? new Date(Date.now()-days*86400000).toISOString() : '1970-01-01T00:00:00.000Z';
-  const [summary]=await query("SELECT COUNT(*) AS events, COUNT(DISTINCT visitor_id) AS visitors, COUNT(DISTINCT session_id) AS visits, COALESCE(SUM(CASE WHEN name = 'page_view' THEN 1 ELSE 0 END),0) AS pages, COUNT(DISTINCT CASE WHEN name = 'checkout_start' THEN session_id END) AS checkouts FROM visitor_events WHERE received_at >= $1",[since]);
-  const [leads]=await query('SELECT COUNT(*) AS leads FROM order_confirmations WHERE confirmed_at >= $1',[since.slice(0,19).replace('T',' ')]);
+  const days=Number(params.get('days') || 7), limit=Number(params.get('limit') || 30);
+  const search=activityTag(params.get('q')), source=activityTag(params.get('source'));
+  const device=params.get('device') || '', stage=params.get('stage') || '', sort=params.get('sort') || 'newest';
+  if (![0,1,7,30].includes(days) || !Number.isInteger(limit) || limit < 1 || limit > 200 ||
+      !['','mobile','tablet','desktop','unknown'].includes(device) ||
+      !['','browsing','checkout','submitted'].includes(stage) || !['newest','oldest'].includes(sort)) return activityResponse({error:'Check the search and filter settings.'},400);
+  const since=days ? new Date(Date.parse(until)-days*86400000).toISOString() : '1970-01-01T00:00:00.000Z';
+  const values=[since,until,until], clauses=[];
+  const parameter=value=>{values.push(value);return '$'+values.length;};
+  const escapeLike=value=>value.replaceAll('!','!!').replaceAll('%','!%').replaceAll('_','!_');
+  if(search)clauses.push("LOWER(v.visitor_id || ' ' || v.session_id) LIKE "+parameter('%'+escapeLike(search)+'%')+" ESCAPE '!'");
+  if(source)clauses.push("v.context LIKE "+parameter('%"source":'+escapeLike(JSON.stringify(source))+'%')+" ESCAPE '!'");
+  if(device)clauses.push('v.context LIKE '+parameter('%"device":'+JSON.stringify(device)+'%'));
+  if(stage==='submitted')clauses.push('v.submitted = 1');
+  if(stage==='checkout')clauses.push('v.checkout = 1 AND v.submitted = 0');
+  if(stage==='browsing')clauses.push('v.checkout = 0 AND v.submitted = 0');
+  const where=clauses.length?' WHERE '+clauses.join(' AND '):'';
+  const grouped="SELECT e.session_id, MIN(e.visitor_id) AS visitor_id, MIN(e.occurred_at) AS started_at, MAX(e.occurred_at) AS last_at, COUNT(*) AS events, SUM(CASE WHEN e.name = 'page_view' THEN 1 ELSE 0 END) AS pages, MAX(CASE WHEN e.name = 'checkout_start' THEN 1 ELSE 0 END) AS checkout, MAX(CASE WHEN e.name = 'confirmation_saved' THEN 1 ELSE 0 END) AS submitted, (SELECT initial.context FROM visitor_events initial WHERE initial.session_id = e.session_id AND initial.received_at <= $3 ORDER BY initial.occurred_at,initial.id LIMIT 1) AS context FROM visitor_events e WHERE e.received_at >= $1 AND e.received_at <= $2 GROUP BY e.session_id";
+  const from=' FROM ('+grouped+') v';
+  const [summary]=await query('SELECT COUNT(*) AS visits, COUNT(DISTINCT visitor_id) AS visitors, COALESCE(SUM(events),0) AS events, COALESCE(SUM(pages),0) AS pages, COALESCE(SUM(checkout),0) AS checkouts, COALESCE(SUM(submitted),0) AS submitted'+from+where,values);
+  const [leads]=await query('SELECT COUNT(*) AS leads FROM order_confirmations WHERE confirmed_at >= $1 AND confirmed_at <= $2',[since.slice(0,19).replace('T',' '),until.slice(0,19).replace('T',' ')]);
   const beforeTime=params.get('beforeTime'), beforeSession=params.get('beforeSession');
   if ((beforeTime || beforeSession) && (!beforeTime || !/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(beforeTime) || !activityUuid.test(beforeSession))) return activityResponse({error:'Choose a valid results page.'},400);
-  const having = beforeTime ? ' HAVING (MAX(e.occurred_at),e.session_id) < ($2,$3)' : '';
-  const rows=await query("SELECT e.session_id, MIN(e.visitor_id) AS visitor_id, MIN(e.occurred_at) AS started_at, MAX(e.occurred_at) AS last_at, COUNT(*) AS events, SUM(CASE WHEN e.name = 'page_view' THEN 1 ELSE 0 END) AS pages, MAX(CASE WHEN e.name = 'checkout_start' THEN 1 ELSE 0 END) AS checkout, MAX(CASE WHEN e.name = 'confirmation_saved' THEN 1 ELSE 0 END) AS submitted, (SELECT initial.context FROM visitor_events initial WHERE initial.session_id = e.session_id ORDER BY initial.occurred_at,initial.id LIMIT 1) AS context FROM visitor_events e WHERE e.received_at >= $1 GROUP BY e.session_id" + having + ' ORDER BY last_at DESC,e.session_id DESC LIMIT 31',beforeTime ? [since,beforeTime,beforeSession] : [since]);
-  const visits=rows.slice(0,30);
+  const ascending=sort==='oldest', direction=ascending?'ASC':'DESC';
+  const cursor=beforeTime?(where?' AND ':' WHERE ')+'(v.last_at,v.session_id) '+(ascending?'>':'<')+' ('+parameter(beforeTime)+','+parameter(beforeSession)+')':'';
+  const rows=await query('SELECT v.*'+from+where+cursor+' ORDER BY v.last_at '+direction+',v.session_id '+direction+' LIMIT '+(limit+1),values);
+  const visits=rows.slice(0,limit);
   return activityResponse({
-    days,summary:{visitors:Number(summary.visitors),visits:Number(summary.visits),events:Number(summary.events),pages:Number(summary.pages),checkouts:Number(summary.checkouts),leads:Number(leads.leads)},
+    until,days,summary:{visitors:Number(summary.visitors),visits:Number(summary.visits),events:Number(summary.events),pages:Number(summary.pages),checkouts:Number(summary.checkouts),submitted:Number(summary.submitted),leads:Number(leads.leads)},
     visits:visits.map(row=>({id:row.session_id,visitor:row.visitor_id,startedAt:row.started_at,lastAt:row.last_at,events:Number(row.events),pages:Number(row.pages),checkout:Boolean(Number(row.checkout)),submitted:Boolean(Number(row.submitted)),context:JSON.parse(row.context)})),
     next:rows.length > visits.length ? {at:visits.at(-1).last_at,sessionId:visits.at(-1).session_id} : null
   });

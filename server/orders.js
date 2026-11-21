@@ -126,19 +126,39 @@ async function availabilitySummary(query) {
 }
 
 async function confirmationSummary(request,query) {
-  const after = new URL(request.url).searchParams.get('after') || '';
-  if (after && !uuidPattern.test(after)) return error('Choose a valid results page.');
+  const params = new URL(request.url).searchParams;
+  const after = params.get('after') || '';
+  const search = trim(params.get('q')).toLowerCase();
+  const source = trim(params.get('source')).toLowerCase();
+  const days = Number(params.get('days') || 0);
+  const limit = Number(params.get('limit') || 30);
+  const sort = params.get('sort') || 'newest';
+  if ((after && !uuidPattern.test(after)) || search.length > 120 || source.length > 120 || ![0,1,7,30].includes(days) ||
+      !Number.isInteger(limit) || limit < 1 || limit > 200 || !['newest','oldest','pieces_desc','pieces_asc'].includes(sort)) return error('Check the search and filter settings.');
+  const clauses = [], values = [];
+  const parameter = value => {values.push(value);return '$' + values.length;};
+  if (search) {
+    const escaped = search.replaceAll('!','!!').replaceAll('%','!%').replaceAll('_','!_');
+    clauses.push("LOWER(name || ' ' || COALESCE(email,'') || ' ' || COALESCE(phone,'') || ' ' || COALESCE(address,city) || ' ' || campaign || ' ' || id) LIKE " + parameter('%'+escaped+'%') + " ESCAPE '!'");
+  }
+  if (source) clauses.push('LOWER(source) = ' + parameter(source));
+  if (days) clauses.push('confirmed_at >= ' + parameter(new Date(Date.now()-days*86400000).toISOString().slice(0,19).replace('T',' ')));
+  const where = clauses.length ? ' WHERE ' + clauses.join(' AND ') : '';
   const [prior] = await query('SELECT COUNT(*) AS requests FROM availability_requests',[]);
-  const [totals] = await query('SELECT COUNT(*) AS confirmations, COALESCE(SUM(quantity), 0) AS pieces FROM order_confirmations',[]);
-  const campaigns = await query('SELECT source, medium, campaign, content, term, campaign_id, adset_id, ad_id, COUNT(*) AS confirmations, SUM(quantity) AS pieces FROM order_confirmations GROUP BY source, medium, campaign, content, term, campaign_id, adset_id, ad_id ORDER BY confirmations DESC, source, medium, campaign, content, term, campaign_id, adset_id, ad_id LIMIT 50',[]);
-  const filter = after ? ' WHERE (confirmed_at, id) < (SELECT confirmed_at, id FROM order_confirmations WHERE id = $1)' : '';
-  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, confirmed_at FROM order_confirmations' + filter + ' ORDER BY confirmed_at DESC, id DESC LIMIT 31',after ? [after] : []);
+  const [totals] = await query('SELECT COUNT(*) AS confirmations, COALESCE(SUM(quantity), 0) AS pieces FROM order_confirmations' + where,values);
+  const campaigns = await query('SELECT source, medium, campaign, content, term, campaign_id, adset_id, ad_id, COUNT(*) AS confirmations, SUM(quantity) AS pieces FROM order_confirmations' + where + ' GROUP BY source, medium, campaign, content, term, campaign_id, adset_id, ad_id ORDER BY confirmations DESC, source, medium, campaign, content, term, campaign_id, adset_id, ad_id LIMIT 50',values);
+  const ascending = sort === 'oldest' || sort === 'pieces_asc';
+  const direction = ascending ? 'ASC' : 'DESC';
+  const columns = sort.startsWith('pieces_') ? 'quantity,confirmed_at,id' : 'confirmed_at,id';
+  let cursor = '';
+  if (after) cursor = (where ? ' AND ' : ' WHERE ') + '(' + columns + ') ' + (ascending ? '>' : '<') + ' (SELECT ' + columns + ' FROM order_confirmations WHERE id = ' + parameter(after) + ')';
+  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, confirmed_at FROM order_confirmations' + where + cursor + ' ORDER BY ' + columns.split(',').map(column=>column+' '+direction).join(',') + ' LIMIT ' + (limit+1),values);
   const counts = row => ({confirmations:Number(row.confirmations),pieces:Number(row.pieces)});
-  const page = rows.slice(0,30);
+  const page = rows.slice(0,limit);
   return json({...counts(totals),earlierRequests:Number(prior.requests),
     campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,content:row.content,term:row.term,campaignId:row.campaign_id,adsetId:row.adset_id,adId:row.ad_id,...counts(row)})),
     details:page.map(({id,product_id,quantity,unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaign_id,adset_id,ad_id,confirmed_at})=>
-      ({id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaignId:campaign_id,adsetId:adset_id,adId:ad_id,confirmedAt:confirmed_at})),
+      ({id,productId:product_id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaignId:campaign_id,adsetId:adset_id,adId:ad_id,confirmedAt:confirmed_at})),
     next:rows.length > page.length ? page.at(-1).id : null
   });
 }

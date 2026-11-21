@@ -28,7 +28,9 @@ export function createStore(assets) {
         return assetResponse(path,request,assets);
       }
       const query = env.DB && (async (sql, parameters) => {
-        const {results} = await env.DB.prepare(sql.replace(/\$\d+/g,'?')).bind(...parameters).all();
+        const bindings=[];
+        const statement=sql.replace(/\$(\d+)/g,(_,position)=>{bindings.push(parameters[Number(position)-1]);return '?';});
+        const {results} = await env.DB.prepare(statement).bind(...bindings).all();
         return results;
       });
       const ownerEmail = env.BEAMPAK_OWNER_EMAIL?.trim().toLowerCase();

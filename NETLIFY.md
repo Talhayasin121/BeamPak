@@ -59,3 +59,11 @@ The store records anonymous browser/tab identifiers, public page paths, device c
 Events are batched in groups of up to eight and retried using the same event IDs. Navigation uses a beacon and the next page retries pending IDs. A visit follows a browser tab and the random browser identifier is stored locally. The report starts collecting after deployment. Disabled JavaScript, browser blockers, cleared browser storage and network failures can affect coverage and browser counts.
 
 Visitor activity uses the host’s database and function resources. The dashboard refreshes on request and provides 24-hour, 7-day, 30-day and all-time views. The separate Meta Pixel still depends on its configured ID and the visitor’s ad-measurement choice.
+
+## Searchable tables and CSV exports
+
+The database manager at **/manage** provides searchable customer submissions and visit tables. Use **Apply filters** to search all matching records in the database, and **Clear** to restore the default view. Submission searches cover the customer name, email, phone, address, campaign and record ID. Visits can be filtered by browser/visit ID, period, device, stage and source.
+
+Use **View record** to read all saved customer and campaign fields. **Export CSV** includes every matching submission or visit across all result pages. **Export visit CSV** downloads every recorded event for the selected visit. CSV timestamps are UTC. Fields that can be interpreted as spreadsheet formulas are prefixed with an apostrophe in exports.
+
+Visit pagination and exports use a report timestamp so activity arriving during the export is included on the next refresh. Locking the manager cancels pending exports and clears the loaded records from the interface. The manager uses the existing database and store access key.
