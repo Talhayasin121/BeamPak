@@ -1,3 +1,5 @@
+import {loadActivity,resetActivity} from './activity-admin.js';
+
 const statuses = ['Received','Confirmed','Shipped','Delivered','Cancelled'];
 const find = selector => document.querySelector(selector);
 const login = find('#manage-login');
@@ -28,6 +30,7 @@ let activeFilters = {};
 let managedOrders = [];
 
 function lock() {
+  resetActivity();
   requestNumber++;
   key = '';
   login.reset();
@@ -162,6 +165,7 @@ async function loadOrders({append=false, silent=false}={}) {
     ordersTitle.hidden = false;
     interest.hidden = false;
     void loadConfirmations(sequence);
+    void loadActivity(request,()=>sequence===requestNumber);
   } catch (failure) {
     if (sequence !== requestNumber) return;
     result.textContent = '';

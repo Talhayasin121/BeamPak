@@ -1,5 +1,6 @@
 import {pixelId} from './ads-config.js';
 import {catalog} from './catalog.js';
+import './activity.js';
 
 const enabled = /^\d{5,25}$/.test(pixelId);
 const consentKey = 'beampak-ad-consent';

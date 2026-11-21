@@ -49,3 +49,13 @@ Before spending on ads, confirm that the Netlify deployment is public, the datab
 
 - [Meta Pixel standard events](https://developers.facebook.com/documentation/meta-pixel/reference)
 - [Meta conversion tracking](https://developers.facebook.com/documentation/meta-pixel/implementation/conversion-tracking)
+
+## Visitor activity
+
+Sign in at **/manage** and open **Visitor activity**. Choose a reporting period, refresh the visit list, and select a visit to read its timeline. Older visits and long timelines can be paged through.
+
+The store records anonymous browser/tab identifiers, public page paths, device category, referrer hostname, campaign labels and structured shopping actions. Logs cover page/product views, gallery and FAQ interactions, scroll depth, visible page time, bag edits, checkout starts/errors, saved confirmations and WhatsApp clicks. Checkout contact details remain in the protected confirmation records.
+
+Events are batched in groups of up to eight and retried using the same event IDs. Navigation uses a beacon and the next page retries pending IDs. A visit follows a browser tab and the random browser identifier is stored locally. The report starts collecting after deployment. Disabled JavaScript, browser blockers, cleared browser storage and network failures can affect coverage and browser counts.
+
+Visitor activity uses the host’s database and function resources. The dashboard refreshes on request and provides 24-hour, 7-day, 30-day and all-time views. The separate Meta Pixel still depends on its configured ID and the visitor’s ad-measurement choice.
