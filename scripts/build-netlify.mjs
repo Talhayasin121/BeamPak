@@ -8,7 +8,8 @@ for(const name of ['index.html','product.html','store.css','media-assets.js']) {
   writeFileSync(file,versionMedia(readFileSync(file,'utf8')));
 }
 
-const pixelId = (process.env.META_PIXEL_ID || '').trim();
+const advertising = JSON.parse(readFileSync(new URL('../config/advertising.json',import.meta.url),'utf8'));
+const pixelId = (process.env.META_PIXEL_ID || advertising.pixelId || '').trim();
 const verification = (process.env.META_DOMAIN_VERIFICATION || '').trim();
 if (pixelId && !/^\d{5,25}$/.test(pixelId)) throw new Error('META_PIXEL_ID must be a numeric Pixel/Dataset ID.');
 if (verification && !/^[a-zA-Z0-9_-]{10,128}$/.test(verification)) throw new Error('META_DOMAIN_VERIFICATION must contain the verification code only.');
