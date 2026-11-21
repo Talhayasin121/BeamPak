@@ -15,5 +15,5 @@ export default function orders(request) {
 }
 
 export const config = {
-  path: ['/api/orders', '/api/orders/lookup', '/api/manage/orders', '/api/manage/status', '/api/interest', '/api/manage/interest', '/api/order-confirmations', '/api/manage/order-confirmations', '/api/activity', '/api/manage/activity']
+  path: ['/api/health', '/api/orders', '/api/orders/lookup', '/api/manage/orders', '/api/manage/status', '/api/interest', '/api/manage/interest', '/api/order-confirmations', '/api/manage/order-confirmations', '/api/activity', '/api/manage/activity']
 };

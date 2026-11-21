@@ -117,8 +117,8 @@ async function confirmOrder(data,query) {
   if (!Number.isInteger(extraRemoteQuantity) || extraRemoteQuantity < 0 || extraRemoteQuantity > 1 || (extraRemoteQuantity && item.id !== 'rgb-pod')) return error('Choose either no extra remote or one extra remote.');
   const subtotal = item.price * quantity + extraRemoteQuantity * extraRemotePrice;
   if (data.expectedSubtotal !== subtotal) return error('The price has changed. Refresh the product page and review the subtotal.',409);
-  const [inserted] = await query("INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, extra_remote_quantity, extra_remote_unit_price) VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING RETURNING id",
-    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,address,email,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name),campaignTag(campaign?.content),campaignTag(campaign?.term),campaignTag(campaign?.campaignId),campaignTag(campaign?.adsetId),campaignTag(campaign?.adId),extraRemoteQuantity,extraRemotePrice]);
+  const [inserted] = await query("INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, extra_remote_quantity, extra_remote_unit_price, contact_key) SELECT $1, $2, $3, $4, $5, $6, '', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20 WHERE NOT EXISTS (SELECT 1 FROM order_confirmations WHERE product_id = $3 AND LOWER(email) = $20) ON CONFLICT DO NOTHING RETURNING id",
+    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,address,email,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name),campaignTag(campaign?.content),campaignTag(campaign?.term),campaignTag(campaign?.campaignId),campaignTag(campaign?.adsetId),campaignTag(campaign?.adId),extraRemoteQuantity,extraRemotePrice,email.toLowerCase()]);
   return json({saved:true,created:Boolean(inserted)});
 }
 async function availabilitySummary(query) {
@@ -221,6 +221,12 @@ export async function handleOrders(request, query, adminKey, isStoreOwner = fals
   if (origin && origin !== url.origin) return error('Request origin is not allowed.',403);
   if (!query) return error('Order service is temporarily unavailable.',503);
   try {
+    if (path === '/api/health') {
+      if (!['GET','HEAD'].includes(request.method)) return error('Method not allowed.',405);
+      await query('SELECT quantity, unit_price, extra_remote_quantity, extra_remote_unit_price, contact_key FROM order_confirmations LIMIT 0',[]);
+      if ((!adminKey || adminKey.length < 20) && !isStoreOwner) return json({ready:false},503);
+      return new Response(request.method === 'HEAD' ? null : JSON.stringify({ready:true}),{status:200,headers:{'Content-Type':'application/json','Cache-Control':'public, max-age=30','X-Content-Type-Options':'nosniff'}});
+    }
     if (path.startsWith('/api/manage/')) return await admin(request,query,adminKey,path,request.method === 'POST' ? await bodyJson(request) : null,isStoreOwner);
     if (path === '/api/interest') return error('Refresh the store to use the latest checkout.',410);
     if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/order-confirmations' && path !== '/api/activity') return error('Page not found.',404);
