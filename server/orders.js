@@ -1,4 +1,4 @@
-import {catalog, freeShipping, maxOrderQuantity, shippingRate} from '../web/catalog.js';
+import {catalog, extraRemotePrice, freeShipping, maxOrderQuantity, shippingRate} from '../web/catalog.js';
 import {recordActivityBatch,getActivityReport} from './activity.js';
 
 const products = new Map(catalog.map(item => [item.id,item]));
@@ -104,6 +104,7 @@ async function confirmOrder(data,query) {
   const item = products.get(data.productId);
   const visitor = trim(data.visitorId).toLowerCase();
   const {quantity,campaign} = data;
+  const extraRemoteQuantity = data.extraRemoteQuantity === undefined ? 0 : data.extraRemoteQuantity;
   const name = trim(data.name), address = trim(data.address), email = trim(data.email), providedPhone = trim(data.phone);
   const phone = providedPhone ? normalizePhone(providedPhone) : null;
   if (!item?.confirmable || !uuidPattern.test(visitor) || !Number.isInteger(quantity) || quantity < 1 || quantity > maxOrderQuantity) {
@@ -113,9 +114,11 @@ async function confirmOrder(data,query) {
   if (!validLength(address,8,300)) return error('Enter your full street address, including your city.');
   if (!validLength(email,3,254) || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return error('Enter a valid email address.');
   if (providedPhone && !phone) return error('Enter a valid Pakistani mobile number or leave it blank.');
-  if (data.expectedSubtotal !== item.price * quantity) return error('The price has changed. Refresh the product page and review the subtotal.',409);
-  const [inserted] = await query("INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id) VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ON CONFLICT DO NOTHING RETURNING id",
-    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,address,email,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name),campaignTag(campaign?.content),campaignTag(campaign?.term),campaignTag(campaign?.campaignId),campaignTag(campaign?.adsetId),campaignTag(campaign?.adId)]);
+  if (!Number.isInteger(extraRemoteQuantity) || extraRemoteQuantity < 0 || extraRemoteQuantity > 1 || (extraRemoteQuantity && item.id !== 'rgb-pod')) return error('Choose either no extra remote or one extra remote.');
+  const subtotal = item.price * quantity + extraRemoteQuantity * extraRemotePrice;
+  if (data.expectedSubtotal !== subtotal) return error('The price has changed. Refresh the product page and review the subtotal.',409);
+  const [inserted] = await query("INSERT INTO order_confirmations (id, visitor_id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, extra_remote_quantity, extra_remote_unit_price) VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING RETURNING id",
+    [crypto.randomUUID(),visitor,item.id,quantity,item.price,name,address,email,phone,campaignTag(campaign?.source),campaignTag(campaign?.medium),campaignTag(campaign?.name),campaignTag(campaign?.content),campaignTag(campaign?.term),campaignTag(campaign?.campaignId),campaignTag(campaign?.adsetId),campaignTag(campaign?.adId),extraRemoteQuantity,extraRemotePrice]);
   return json({saved:true,created:Boolean(inserted)});
 }
 async function availabilitySummary(query) {
@@ -152,13 +155,13 @@ async function confirmationSummary(request,query) {
   const columns = sort.startsWith('pieces_') ? 'quantity,confirmed_at,id' : 'confirmed_at,id';
   let cursor = '';
   if (after) cursor = (where ? ' AND ' : ' WHERE ') + '(' + columns + ') ' + (ascending ? '>' : '<') + ' (SELECT ' + columns + ' FROM order_confirmations WHERE id = ' + parameter(after) + ')';
-  const rows = await query('SELECT id, product_id, quantity, unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, confirmed_at FROM order_confirmations' + where + cursor + ' ORDER BY ' + columns.split(',').map(column=>column+' '+direction).join(',') + ' LIMIT ' + (limit+1),values);
+  const rows = await query('SELECT id, product_id, quantity, unit_price, extra_remote_quantity, extra_remote_unit_price, name, city, address, email, phone, source, medium, campaign, content, term, campaign_id, adset_id, ad_id, confirmed_at FROM order_confirmations' + where + cursor + ' ORDER BY ' + columns.split(',').map(column=>column+' '+direction).join(',') + ' LIMIT ' + (limit+1),values);
   const counts = row => ({confirmations:Number(row.confirmations),pieces:Number(row.pieces)});
   const page = rows.slice(0,limit);
   return json({...counts(totals),earlierRequests:Number(prior.requests),
     campaigns:campaigns.map(row=>({source:row.source,medium:row.medium,campaign:row.campaign,content:row.content,term:row.term,campaignId:row.campaign_id,adsetId:row.adset_id,adId:row.ad_id,...counts(row)})),
-    details:page.map(({id,product_id,quantity,unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaign_id,adset_id,ad_id,confirmed_at})=>
-      ({id,productId:product_id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaignId:campaign_id,adsetId:adset_id,adId:ad_id,confirmedAt:confirmed_at})),
+    details:page.map(({id,product_id,quantity,unit_price,extra_remote_quantity,extra_remote_unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaign_id,adset_id,ad_id,confirmed_at})=>
+      ({id,productId:product_id,product:products.get(product_id)?.name ?? product_id,quantity,unitPrice:unit_price,extraRemoteQuantity:extra_remote_quantity,extraRemoteUnitPrice:extra_remote_unit_price,subtotal:quantity*unit_price+extra_remote_quantity*extra_remote_unit_price,name,city,address,email,phone,source,medium,campaign,content,term,campaignId:campaign_id,adsetId:adset_id,adId:ad_id,confirmedAt:confirmed_at})),
     next:rows.length > page.length ? page.at(-1).id : null
   });
 }

@@ -1,6 +1,7 @@
-import {catalog, maxOrderQuantity} from './catalog.js';
+import {catalog, extraRemotePrice, maxOrderQuantity} from './catalog.js';
 import {trackAdEvent} from './marketing.js';
 import {campaign,recordActivity} from './activity.js';
+import {bundleContents} from './bundle.js';
 
 const icons = {
   chat:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L4 20l1-3.8a8.5 8.5 0 1 1 15.5-4.7Z"/><path d="M9.1 8.1c-.4.3-.6.8-.5 1.4.3 2.2 2.6 4.4 4.9 4.8.6.1 1.1-.1 1.4-.5l.4-.6-2.2-1.1-.6.7c-1.1-.4-1.9-1.3-2.3-2.3l.7-.6-1.1-2.2-.7.4Z"/>',
@@ -27,7 +28,7 @@ const unitPrice = item => money(item.price) + (item.unit ? ' / ' + item.unit : '
 const products = new Map(catalog.map(item => [item.id, item]));
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const safe = value => String(value).replace(/[&<>"']/g, character => escapes[character]);
-const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, screen:'', opener:null, submittingConfirmation:false, itemQuantity:1};
+const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, extraRemote:false, itemExtraRemote:false, screen:'', opener:null, submittingConfirmation:false, itemQuantity:1};
 const confirmedProducts = new Set();
 function isConfirmed(id) {
   try {return confirmedProducts.has(id) || localStorage.getItem("beampak-confirmed:" + id) === "1";}
@@ -42,6 +43,8 @@ try {
   for (const [id, quantity] of Object.entries(saved)) {
     if (products.get(id)?.confirmable && !isConfirmed(id) && Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity) state.cart[id] = quantity;
   }
+  state.extraRemote = Boolean(state.cart['rgb-pod']) && localStorage.getItem('beampak-extra-remote') === '1';
+  state.itemExtraRemote = state.extraRemote;
 } catch { /* Shopping remains available when browser storage is disabled. */ }
 const slides = [
   {image:'hero.jpg', alt:'Modified sports coupe with purple underglow at night', caption:''},
@@ -94,14 +97,18 @@ function renderCatalog() {
   }).join('') : '<div class="no-results"><p>No products match your filters.</p><button class="btn btn-ghost" data-action="reset">Clear filters</button></div>';
 }
 function persistCart() {
-  try { localStorage.setItem('beampak-bag', JSON.stringify(state.cart)); } catch { /* Cart stays in memory. */ }
-  const count = Object.values(state.cart).reduce((sum, quantity) => sum + quantity, 0);
+  try {
+    localStorage.setItem('beampak-bag', JSON.stringify(state.cart));
+    localStorage.setItem('beampak-extra-remote', state.extraRemote ? '1' : '0');
+  } catch { /* Cart stays in memory. */ }
+  const count = Object.values(state.cart).reduce((sum, quantity) => sum + quantity, 0) + (state.cart['rgb-pod'] && state.extraRemote ? 1 : 0);
   find('#bag-count').textContent = count;
   find('.bag-btn').setAttribute('aria-label','Open shopping bag, ' + count + (count === 1 ? ' item' : ' items'));
 }
 function setQuantity(id, quantity) {
   if (quantity < 1) delete state.cart[id];
   else state.cart[id] = quantity;
+  if (!state.cart['rgb-pod']) state.extraRemote = false;
   persistCart();
 }
 let toastTimer;
@@ -129,10 +136,11 @@ panel.addEventListener('close', () => {
 panel.addEventListener('click', event => {if (event.target === panel && !state.submittingConfirmation) panel.close();});
 panel.addEventListener('cancel', event => {if (state.submittingConfirmation) event.preventDefault();});
 function cartSubtotal() {
-  return Object.entries(state.cart).reduce((sum, [id, quantity]) => sum + products.get(id).price * quantity, 0);
+  return Object.entries(state.cart).reduce((sum, [id, quantity]) => sum + products.get(id).price * quantity, 0) + (state.cart['rgb-pod'] && state.extraRemote ? extraRemotePrice : 0);
 }
 function totals() {
-  return '<div class="totals"><p><span>Product subtotal</span><span>' + money(cartSubtotal()) + '</span></p></div>';
+  const remote = state.cart['rgb-pod'] && state.extraRemote;
+  return '<div class="totals"><p><span>LED pods</span><span>' + money(cartSubtotal()-(remote?extraRemotePrice:0)) + '</span></p>' + (remote ? '<p><span>Extra remote × 1</span><span>' + money(extraRemotePrice) + '</span></p>' : '') + '<p><strong>Selection subtotal</strong><strong>' + money(cartSubtotal()) + '</strong></p></div>';
 }
 function showCart(focusSelector) {
   recordActivity('bag_view');
@@ -141,7 +149,8 @@ function showCart(focusSelector) {
     const item = products.get(id);
     return '<div class="cart-row"><img src="/media/' + item.image + '" alt=""><div><h3>' + item.name + '</h3><div class="stepper"><button data-qty="' + id + '" data-step="-1" aria-label="Decrease quantity of ' + item.name + '">−</button><span>' + quantity + '</span><button data-qty="' + id + '" data-step="1" aria-label="Increase quantity of ' + item.name + '">+</button><button class="remove" data-qty="' + id + '" data-step="0">Remove</button></div></div><span class="price">' + money(item.price * quantity) + '</span></div>';
   }).join('');
-  const contents = entries.length ? lines + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="checkout">Continue to checkout ' + icon('arrow') + '</button>'
+  const remoteOption = state.cart['rgb-pod'] ? '<label class="remote-option"><input id="bag-extra-remote" type="checkbox"' + (state.extraRemote?' checked':'') + '><span><strong>Add an extra remote · +Rs. 100</strong><small>One remote is already included with your bundle.</small></span></label>' : '';
+  const contents = entries.length ? lines + remoteOption + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="checkout">Continue to checkout ' + icon('arrow') + '</button>'
     : '<p>Your shopping bag is empty.</p><button class="btn btn-primary" data-action="continue">Browse the shop</button>';
   openPanel('cart', 'YOUR BAG', contents, 'drawer');
   if (focusSelector) panel.querySelector(focusSelector)?.focus();
@@ -164,8 +173,10 @@ function showCheckout() {
   if (!entries.length) return showCart();
   if (entries.some(([id])=>isConfirmed(id))) return showUnavailable();
   recordActivity('checkout_start');
-  trackAdEvent('InitiateCheckout',entries.map(([id,quantity])=>({id,quantity,price:products.get(id).price})));
-  const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
+  const adLines = entries.map(([id,quantity])=>({id,quantity,price:products.get(id).price}));
+  if (state.cart['rgb-pod'] && state.extraRemote) adLines.push({id:'rgb-pod-extra-remote',quantity:1,price:extraRemotePrice});
+  trackAdEvent('InitiateCheckout',adLines);
+  const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('') + (state.cart['rgb-pod'] ? '<li>Included remote × 1</li>' : '') + (state.extraRemote ? '<li>Extra remote × 1 · Rs. 100</li>' : '');
   openPanel('checkout','REVIEW YOUR ORDER','<form id="confirmation-form" class="stack"><ul>' + items + '</ul>' + totals() +
     '<label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label>Street address<textarea name="address" autocomplete="street-address" minlength="8" maxlength="300" rows="3" placeholder="House or building, street, and city" required></textarea></label><label>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required></label>' +
     '<label>Mobile number (optional)<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" maxlength="24"></label>' +
@@ -191,30 +202,65 @@ const gallery = [
 function renderQuantityPreview() {
   const container=find('#quantity-preview');
   const quantity=state.itemQuantity;
-  const valid=Number.isInteger(quantity) && quantity > 0 && quantity <= maxOrderQuantity;
+  const bundle=bundleContents(quantity,state.itemExtraRemote);
   container.replaceChildren();
-  if(valid) {
-    const columns=quantity<=2?quantity:quantity<=4?2:quantity<=9?3:4;
+  if(bundle) {
+    const columns=quantity<=2?quantity:quantity<=4?2:quantity<=12?4:5;
     container.style.setProperty('--pod-columns',columns);
     container.dataset.count=quantity;
-    container.setAttribute('aria-label',quantity+' multicolour LED '+(quantity===1?'pod':'pods'));
+    const description=quantity+' LED '+(quantity===1?'pod':'pods')+', '+bundle.remotes+' '+(bundle.remotes===1?'remote':'remotes')+', '+bundle.pads+' mounting pads, '+bundle.rings+' mounting rings and '+bundle.chargingLeads+' charging '+(bundle.chargingLeads===1?'lead':'leads');
+    container.setAttribute('aria-label',description);
+    find('#bundle-includes').textContent='Your bundle includes '+description+'.';
+    const podGrid=document.createElement('div');
+    podGrid.className='bundle-pods';
     const pods=Array.from({length:quantity},()=>{
       const image=document.createElement('img');
       image.src='/media/rgb-pod-single.png';
       image.alt='';
+      image.dataset.bundlePart='pod';
       image.width=1536;
       image.height=1024;
       image.decoding='async';
       return image;
     });
-    container.append(...pods);
-    find('#gallery-caption').textContent=quantity+' LED '+(quantity===1?'pod':'pods')+' · quantity illustration';
+    podGrid.append(...pods);
+    container.append(podGrid);
+    const accessoryGrid=document.createElement('div');
+    accessoryGrid.className='bundle-accessories';
+    const groups=[
+      {label:'Remote',count:bundle.remotes,parts:[['remote',bundle.remotes]]},
+      {label:'Mounting pads',count:bundle.pads,parts:[['pad',bundle.pads]]},
+      {label:'Mounting rings',count:bundle.rings,parts:[['ring',bundle.rings]]},
+      {label:'Charging leads',count:bundle.chargingLeads,parts:[['single',bundle.singleLeads],['split',bundle.splitLeads]]}
+    ];
+    for(const group of groups) {
+      const section=document.createElement('div'), heading=document.createElement('p'), pictures=document.createElement('div');
+      section.className='bundle-group';
+      section.dataset.accessoryCount=group.count;
+      section.style.setProperty('--accessory-size',group.count>8?'30px':group.count>4?'40px':'64px');
+      heading.textContent=group.label+' × '+group.count;
+      pictures.className='bundle-accessory-pictures';
+      for(const [part,count]of group.parts) {
+        for(let i=0;i<count;i++) {
+          const picture=document.createElement('span');
+          picture.className='accessory-sprite accessory-'+part;
+          picture.dataset.bundlePart=part;
+          picture.setAttribute('aria-hidden','true');
+          pictures.append(picture);
+        }
+      }
+      section.append(pictures,heading);
+      accessoryGrid.append(section);
+    }
+    container.append(accessoryGrid);
+    find('#gallery-caption').textContent=quantity+'-pod bundle · '+bundle.remotes+' '+(bundle.remotes===1?'remote':'remotes')+' · bundle illustration';
   } else {
     delete container.dataset.count;
     container.style.removeProperty('--pod-columns');
     container.setAttribute('aria-label','Choose a valid quantity to preview the pods');
     container.textContent='Enter a whole number from 1 to '+maxOrderQuantity+' to preview your pods.';
     find('#gallery-caption').textContent='Quantity preview';
+    find('#bundle-includes').textContent='';
   }
 }
 function showGallery(index) {
@@ -238,7 +284,7 @@ function renderItemQuantity() {
   input.setAttribute('aria-invalid', String(quantity === null));
   const item = products.get(itemPage.dataset.itemPage);
   showGallery(0);
-  const amount = quantity === null ? '—' : money(item.price * quantity);
+  const amount = quantity === null ? '—' : money(item.price * quantity+(state.itemExtraRemote?extraRemotePrice:0));
   document.querySelectorAll('[data-item-subtotal]').forEach(total => {total.textContent = amount;});
   document.querySelectorAll('[data-piece-count]').forEach(button => {
     button.setAttribute('aria-pressed', String(Number(button.dataset.pieceCount) === quantity));
@@ -312,6 +358,7 @@ document.addEventListener('click', event => {
     if (amount === null) return;
     const quantity = (state.cart[add] || 0) + amount;
     if (quantity > maxOrderQuantity) return notify('Maximum ' + maxOrderQuantity + ' per product');
+    if (add === 'rgb-pod' && control.closest('[data-purchase],[data-mobile-purchase]')) state.extraRemote=state.itemExtraRemote;
     setQuantity(add, quantity);
     recordActivity('add_to_bag',{productId:add,quantity:amount});
     trackAdEvent('AddToCart',[{id:add,quantity:amount,price:products.get(add).price}]);
@@ -389,7 +436,7 @@ document.addEventListener('submit', async event => {
       if (!entry) return showCart();
       const [productId,quantity] = entry;
       confirmedProduct = productId;
-      Object.assign(data,{productId,quantity,expectedSubtotal:cartSubtotal(),visitorId:requestVisitor(),campaign});
+      Object.assign(data,{productId,quantity,extraRemoteQuantity:state.extraRemote?1:0,expectedSubtotal:cartSubtotal(),visitorId:requestVisitor(),campaign});
     }
     const response = await fetch(confirmation ? '/api/order-confirmations' : '/api/orders/lookup',{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(20000)
@@ -440,6 +487,7 @@ if (itemPage || featuredProduct) {
     find('[data-purchase]').hidden = !item.confirmable;
     find('[data-mobile-purchase]').hidden = !item.confirmable;
     const input = find('#item-quantity');
+    find('#extra-remote').checked=state.itemExtraRemote;
     input.max = maxOrderQuantity;
     find('#quantity-range').textContent = 'Whole numbers from 1 to ' + maxOrderQuantity;
     document.querySelectorAll('[data-piece-count]').forEach(button => {
@@ -452,4 +500,15 @@ if (itemPage || featuredProduct) {
     renderItemQuantity();
   }
 }
+document.addEventListener('change',event=>{
+  if (!['extra-remote','bag-extra-remote'].includes(event.target.id)) return;
+  state.itemExtraRemote=event.target.checked;
+  if (state.cart['rgb-pod']) state.extraRemote=event.target.checked;
+  persistCart();
+  if (itemPage) {
+    find('#extra-remote').checked=state.itemExtraRemote;
+    renderItemQuantity();
+  }
+  if (event.target.id === 'bag-extra-remote') showCart('#bag-extra-remote');
+});
 if (new URLSearchParams(location.search).get('track') === '1') showTrack();

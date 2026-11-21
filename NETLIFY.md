@@ -70,8 +70,10 @@ Visit pagination and exports use a report timestamp so activity arriving during 
 
 ## Product information and quantity preview
 
-The product page presents a selected number of individual LED pods for every valid quantity from 1 to 20, using an edited single-pod illustration. Changing the quantity returns the gallery to this preview. The original two-pod kit is available separately as an accessory reference. Unit price remains PKR 999.
+The product page shows the complete selected bundle for every quantity from 1 to 20. Every bundle has the selected pods, one included remote, one mounting pad and rubber ring per pod, and a charging lead per pair (a single lead handles an odd remaining pod). Changing the quantity restores the bundle preview. The original kit image remains a separate reference. Unit price remains PKR 999.
 
-The supplier reference is Alibaba product **1601597705581**. The product page distinguishes seller-listed figures from information still awaiting Beampak batch confirmation.
+The product details incorporate the store owner's provided specifications: USB Type-C charging, a 110mAh battery at 3.7V, IP67 protection, black plastic housing, Chinese origin and a one-year warranty covering mechanical defects. Voltage and capacity are shown separately. Unanswered runtime, dimension and other unconfirmed FAQs have been removed.
 
-- [Supplier product listing](https://www.alibaba.com/product-detail/2-4-6pcs-Wireless-Remote-Control_1601597705581.html)
+An optional extra remote costs PKR 100 once per bundle, giving two remotes in total. Product selection and bag controls use the same option, and checkout shows the charge separately. The server validates the option and computes the subtotal from the configured prices. Both database platforms append schema migrations for extra-remote quantity and historical unit price; older records default to no extra remote. The manager and CSV exports show the saved extra-remote selection and full subtotal. Stock status and confirmation collection retain their existing behaviour.
+
+The FAQs include custom design and sample enquiries, production checks and support. Customers can send WhatsApp messages 24 hours a day; an immediate response is not promised. Product and customer-help pages use consistent warranty wording.
