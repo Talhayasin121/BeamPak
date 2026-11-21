@@ -1,4 +1,5 @@
 import {catalog, maxOrderQuantity} from './catalog.js';
+import {trackAdEvent} from './marketing.js';
 
 const icons = {
   chat:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L4 20l1-3.8a8.5 8.5 0 1 1 15.5-4.7Z"/><path d="M9.1 8.1c-.4.3-.6.8-.5 1.4.3 2.2 2.6 4.4 4.9 4.8.6.1 1.1-.1 1.4-.5l.4-.6-2.2-1.1-.6.7c-1.1-.4-1.9-1.3-2.3-2.3l.7-.6-1.1-2.2-.7.4Z"/>',
@@ -158,6 +159,7 @@ function showCheckout() {
   const entries = Object.entries(state.cart);
   if (!entries.length) return showCart();
   if (entries.some(([id])=>isConfirmed(id))) return showUnavailable();
+  trackAdEvent('InitiateCheckout',entries.map(([id,quantity])=>({id,quantity,price:products.get(id).price})));
   const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
   openPanel('checkout','REVIEW YOUR ORDER','<form id="confirmation-form" class="stack"><ul>' + items + '</ul>' + totals() +
     '<label>Full name<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label>Street address<textarea name="address" autocomplete="street-address" minlength="8" maxlength="300" rows="3" placeholder="House or building, street, and city" required></textarea></label><label>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required></label>' +
@@ -270,6 +272,7 @@ document.addEventListener('click', event => {
     const quantity = (state.cart[add] || 0) + amount;
     if (quantity > maxOrderQuantity) return notify('Maximum ' + maxOrderQuantity + ' per product');
     setQuantity(add, quantity);
+    trackAdEvent('AddToCart',[{id:add,quantity:amount,price:products.get(add).price}]);
     if (panel.open || control.hasAttribute('data-open-bag')) showCart();
     else notify(products.get(add).name + ' added to bag');
   } else if (qty) {
@@ -295,15 +298,12 @@ find('#stock-only')?.addEventListener('change', event => {
 find('#sort')?.addEventListener('change', event => {state.sort=event.target.value;renderCatalog();});
 function readCampaign() {
   const params = new URLSearchParams(location.search);
-  const tag = key => {
-    const value = (params.get(key) || '').trim().toLowerCase();
-    return /^[a-z0-9][a-z0-9_. -]{0,59}$/.test(value) ? value : '';
-  };
-  const current = {source:tag('utm_source'),medium:tag('utm_medium'),name:tag('utm_campaign')};
+  const tag = key => (params.get(key) || '').trim().toLowerCase().replace(/[<>\u0000-\u001f\u007f]/g,'').slice(0,120);
+  const current = {source:tag('utm_source'),medium:tag('utm_medium'),name:tag('utm_campaign'),content:tag('utm_content'),term:tag('utm_term'),campaignId:tag('campaign_id'),adsetId:tag('adset_id'),adId:tag('ad_id')};
   try {
     if (Object.values(current).some(Boolean)) sessionStorage.setItem('beampak-campaign',JSON.stringify(current));
     else return JSON.parse(sessionStorage.getItem('beampak-campaign')) || current;
-  } catch { /* Keep the current campaign if session storage is unavailable. */ }
+  } catch { /* Preserve campaign tags from this page when storage is unavailable. */ }
   return current;
 }
 const campaign = readCampaign();
@@ -364,6 +364,7 @@ document.addEventListener('submit', async event => {
     if (!response.ok) throw new Error(result.error || 'Please try again.');
     if (confirmation) {
       if (result.saved !== true) throw new Error('Could not save your confirmation. Please try again.');
+      if (result.created === true) trackAdEvent('Lead',[{id:confirmedProduct,quantity:data.quantity,price:products.get(confirmedProduct).price}]);
       rememberConfirmation(confirmedProduct);
       setQuantity(confirmedProduct,0);
       showUnavailable();

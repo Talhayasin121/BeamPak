@@ -1,7 +1,7 @@
 import {catalog} from '../web/catalog.js';
 import {handleOrders} from '../server/orders.js';
 
-const contentSecurity = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; media-src https://videos.pexels.com; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'";
+const contentSecurity = "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' https://www.facebook.com https://connect.facebook.net; connect-src 'self' https://www.facebook.com https://connect.facebook.net; media-src https://videos.pexels.com; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'";
 const pageRoutes = new Map([['/','/index.html'],['/manage','/manage.html']]);
 for (const item of catalog) {
   if (item.page) {
