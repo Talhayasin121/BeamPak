@@ -67,3 +67,11 @@ The database manager at **/manage** provides searchable customer submissions and
 Use **View record** to read all saved customer and campaign fields. **Export CSV** includes every matching submission or visit across all result pages. **Export visit CSV** downloads every recorded event for the selected visit. CSV timestamps are UTC. Fields that can be interpreted as spreadsheet formulas are prefixed with an apostrophe in exports.
 
 Visit pagination and exports use a report timestamp so activity arriving during the export is included on the next refresh. Locking the manager cancels pending exports and clears the loaded records from the interface. The manager uses the existing database and store access key.
+
+## Product information and quantity preview
+
+The product page presents a selected number of individual LED pods for every valid quantity from 1 to 20, using an edited single-pod illustration. Changing the quantity returns the gallery to this preview. The original two-pod kit is available separately as an accessory reference. Unit price remains PKR 999.
+
+The supplier reference is Alibaba product **1601597705581**. The product page distinguishes seller-listed figures from information still awaiting Beampak batch confirmation.
+
+- [Supplier product listing](https://www.alibaba.com/product-detail/2-4-6pcs-Wireless-Remote-Control_1601597705581.html)
