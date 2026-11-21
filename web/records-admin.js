@@ -25,7 +25,7 @@ const when=value=>new Date(value.includes('T')?value:value.replace(' ','T')+'Z')
 function renderRows() {
   body.replaceChildren(...records.map(record=>{
     const row=document.createElement('tr');
-    for(const value of [when(record.confirmedAt),record.name,record.email,record.phone,record.quantity,money(record.quantity*record.unitPrice),campaignLabel(record)]) {
+    for(const value of [when(record.confirmedAt),record.name,record.email,record.phone,record.quantity,record.extraRemoteQuantity ?? 0,money(record.subtotal ?? record.quantity*record.unitPrice),campaignLabel(record)]) {
       const cell=document.createElement('td');
       cell.textContent=value ?? '—';
       row.append(cell);
@@ -82,7 +82,9 @@ function showRecord(id) {
   find('#record-title').textContent=record.name;
   const fields=[
     ['Record ID',record.id],['Confirmed at (UTC)',record.confirmedAt],['Product',record.product],
-    ['Pieces',record.quantity],['Unit price',money(record.unitPrice)],['Product subtotal',money(record.quantity*record.unitPrice)],
+    ['Pods',record.quantity],['Pod unit price',money(record.unitPrice)],['Pod subtotal',money(record.quantity*record.unitPrice)],
+    ['Included remote',1],['Extra remotes',record.extraRemoteQuantity ?? 0],['Extra remote unit price',money(record.extraRemoteUnitPrice ?? 100)],
+    ['Extra remote subtotal',money((record.extraRemoteQuantity ?? 0)*(record.extraRemoteUnitPrice ?? 100))],['Selection subtotal',money(record.subtotal ?? record.quantity*record.unitPrice)],
     ['Street address',record.address||record.city],['Email',record.email],['Mobile',record.phone],
     ['Source',record.source],['Medium',record.medium],['Campaign',record.campaign],
     ['Ad content',record.content],['Audience',record.term],['Campaign ID',record.campaignId],['Ad set ID',record.adsetId],['Ad ID',record.adId]
@@ -116,8 +118,8 @@ async function exportRecords() {
       after=report.next;
       exportStatus.textContent=count(data.size,'submission')+' prepared…';
     } while(after);
-    const rows=[['Record ID','Confirmed at (UTC)','Name','Email','Mobile','Street address','Product','Pieces','Unit price (PKR)','Product subtotal (PKR)','Source','Medium','Campaign','Ad content','Audience','Campaign ID','Ad set ID','Ad ID']];
-    for(const record of data.values())rows.push([record.id,record.confirmedAt,record.name,record.email,record.phone,record.address||record.city,record.product,record.quantity,record.unitPrice,record.quantity*record.unitPrice,record.source,record.medium,record.campaign,record.content,record.term,record.campaignId,record.adsetId,record.adId]);
+    const rows=[['Record ID','Confirmed at (UTC)','Name','Email','Mobile','Street address','Product','Pods','Pod unit price (PKR)','Pod subtotal (PKR)','Extra remotes','Extra remote unit price (PKR)','Extra remote subtotal (PKR)','Selection subtotal (PKR)','Source','Medium','Campaign','Ad content','Audience','Campaign ID','Ad set ID','Ad ID']];
+    for(const record of data.values())rows.push([record.id,record.confirmedAt,record.name,record.email,record.phone,record.address||record.city,record.product,record.quantity,record.unitPrice,record.quantity*record.unitPrice,record.extraRemoteQuantity ?? 0,record.extraRemoteUnitPrice ?? 100,(record.extraRemoteQuantity ?? 0)*(record.extraRemoteUnitPrice ?? 100),record.subtotal ?? record.quantity*record.unitPrice,record.source,record.medium,record.campaign,record.content,record.term,record.campaignId,record.adsetId,record.adId]);
     downloadCsv('beampak-submissions-'+new Date().toISOString().slice(0,10)+'.csv',rows);
     exportStatus.textContent=count(data.size,'submission')+' exported.';
   } catch {

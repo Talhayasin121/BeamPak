@@ -344,4 +344,19 @@ body:has(dialog[open]) .whatsapp-widget{visibility:hidden}
 .item-thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.item-thumbs button{min-width:0;display:grid;justify-items:center;align-content:start;gap:6px;text-align:center;padding:9px 4px}.item-thumbs img{width:58px;height:50px;object-fit:contain}
 @media(max-width:540px){.quantity-preview{padding:12px;gap:7px}}
 
-.product-media img[src$="rgb-pod-single.png"],.cart-row img[src$="rgb-pod-single.png"],.search-result img[src$="rgb-pod-single.png"]{object-fit:contain;background:#15121f}.supplier-reference{margin-top:22px;padding:16px;border:1px solid #40334f;border-radius:8px}.supplier-reference summary{cursor:pointer}.supplier-reference p{margin-top:10px;color:var(--muted)}.supplier-reference a{text-decoration:underline}
+.product-media img[src$="rgb-pod-single.png"],.cart-row img[src$="rgb-pod-single.png"],.search-result img[src$="rgb-pod-single.png"]{object-fit:contain;background:#15121f}
+.item-highlights{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:18px 0 22px;padding:0}.item-highlights li{padding:7px 10px;border:1px solid #40334f;border-radius:6px;background:#181321;color:#e8ddff;font-size:14px;line-height:1.4}
+.quantity-preview.bundle-preview{display:grid;grid-template-columns:1fr;aspect-ratio:auto;min-height:420px;gap:18px;padding:22px;background:#fff;color:#19151e}
+.bundle-pods{display:grid;grid-template-columns:repeat(var(--pod-columns),minmax(0,1fr));align-items:center;justify-items:center;gap:5px;width:100%}
+.bundle-image figcaption{position:static;padding:9px 12px;border-radius:0;font-size:12px;line-height:1.5}
+.quantity-preview .bundle-pods img{width:100%;max-width:250px;height:auto;aspect-ratio:1.5;object-fit:contain}
+.bundle-preview[data-count="1"] .bundle-pods img{max-width:310px}
+.bundle-accessories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px;width:100%;border-top:1px solid #eae6ef;padding-top:14px}
+.bundle-group{min-width:0;text-align:center;align-self:start}.bundle-group p{font-size:14px;line-height:1.4;margin:6px 0 0;font-weight:650}
+.bundle-accessory-pictures{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:2px;min-height:86px}
+.accessory-sprite{display:block;flex:0 0 var(--accessory-size,64px);width:var(--accessory-size,64px);aspect-ratio:1;background-image:url('/media/led-kit-accessories.png');background-size:300% 200%;background-repeat:no-repeat}
+.accessory-remote{background-position:0 0;flex-basis:90px;width:90px}.accessory-single{background-position:50% 0}.accessory-split{background-position:100% 0}.accessory-pad{background-position:0 100%}.accessory-ring{background-position:50% 100%}
+.remote-option,.panel-body label.remote-option{display:flex;align-items:flex-start;gap:11px;padding:13px;border:1px solid #57416e;border-radius:7px;background:#1b1425;margin:15px 0;cursor:pointer;font-size:14px;line-height:1.5}
+.remote-option input,.panel-body .remote-option input{appearance:auto;accent-color:#b98cff;width:19px;height:19px;flex:0 0 19px;margin-top:2px;padding:0}
+.remote-option span{display:grid;gap:3px}.remote-option small{font-size:13px;color:var(--muted);font-weight:400}.bundle-includes{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 14px}
+@media(max-width:540px){.quantity-preview.bundle-preview{padding:14px;gap:14px;min-height:390px}.accessory-remote{flex-basis:76px;width:76px}.bundle-accessories{gap:12px 6px}.bundle-group p{font-size:13px}.bundle-accessory-pictures{min-height:76px}}
