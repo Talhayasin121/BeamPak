@@ -31,7 +31,7 @@ Use Node.js 22.13 or later. Run **npm ci** and **npm run build:netlify** from th
 
 ## Meta ads setup
 
-The product landing page is **/products/multicolour-led-pod-kit**. Add **META_PIXEL_ID** in Netlify environment variables with your numeric Pixel/Dataset ID, include the Builds scope, and redeploy. Production builds enable the pixel. Deploy previews disable it. The public Pixel ID is written into the storefront configuration.
+The product landing page is **/products/multicolour-led-pod-kit**. Production builds use Pixel ID **4517376515184074** from **config/advertising.json**. An optional **META_PIXEL_ID** Netlify build variable overrides this value. Deploy previews and the private/local Worker build keep the Pixel disabled. The numeric ID is public configuration.
 
 Optional build variables are **META_DOMAIN_VERIFICATION**, containing only the verification code from Meta Business Settings, and **SITE_URL**, containing your public website origin. Netlify’s **URL** supplies the default origin for canonical and social preview URLs. Verify a custom domain in Meta when you use one.
 
@@ -45,7 +45,7 @@ Use this URL-parameter template in the ad’s tracking settings.
 
 The admin portal shows these labels alongside confirmation counts. Numeric IDs preserve attribution when names change. Campaign tags survive navigation from the home page to the product page in the same browser session.
 
-Before spending on ads, confirm that the Netlify deployment is public, the readiness endpoint reports ready, and the store manager is accessible. Test checkout on a deploy preview so production campaign totals stay clean. Meta Pixel is optional; it is deliberately disabled for this demand test. If it is enabled later, verify its events in Meta Test Events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
+Before spending on ads, confirm that the Netlify deployment is public, the readiness endpoint reports ready, and the store manager is accessible. Test checkout on a deploy preview so production campaign totals stay clean. Meta Pixel is configured for consented production visits. Verify event receipt in Meta Test Events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
 
 - [Meta Pixel standard events](https://developers.facebook.com/documentation/meta-pixel/reference)
 - [Meta conversion tracking](https://developers.facebook.com/documentation/meta-pixel/implementation/conversion-tracking)
@@ -96,4 +96,4 @@ The Submissions table in `/manage` is the source of saved demand counts and incl
 
 Responsive WebP variants are checked in under `web/media/fast/`; original artwork remains available. Regenerate the variants and browser manifest with **npm run optimize:images** when source images change. The pod and accessory variants use lossless WebP encoding after resizing, with compact PNG fallbacks for older browsers. Both deployment builds add a content fingerprint to optimized image URLs, allowing long browser caching while refreshing changed artwork.
 
-The default bundle is rendered in the page markup. Quantity updates reuse existing picture and accessory nodes, and critical fonts and modules are discovered early. Activity events stay in memory during rapid input, are persisted in batches, and are saved immediately before page exit. Cart and confirmation persistence retain their existing behaviour. Meta Pixel remains disabled by choice.
+The default bundle is rendered in the page markup. Quantity updates reuse existing picture and accessory nodes, and critical fonts and modules are discovered early. Activity events stay in memory during rapid input, are persisted in batches, and are saved immediately before page exit. Cart and confirmation persistence retain their existing behaviour. Production Pixel measurement uses the configured ID after visitor consent.

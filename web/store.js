@@ -396,10 +396,13 @@ document.addEventListener('click', event => {
     if (amount === null) return;
     const quantity = (state.cart[add] || 0) + amount;
     if (quantity > maxOrderQuantity) return notify('Maximum ' + maxOrderQuantity + ' per product');
+    const extraAlreadyInBag=Boolean(state.cart['rgb-pod'] && state.extraRemote);
     if (add === 'rgb-pod' && control.closest('[data-purchase],[data-mobile-purchase]')) state.extraRemote=state.itemExtraRemote;
     setQuantity(add, quantity);
     recordActivity('add_to_bag',{productId:add,quantity:amount});
-    trackAdEvent('AddToCart',[{id:add,quantity:amount,price:products.get(add).price}]);
+    const addedLines=[{id:add,quantity:amount,price:products.get(add).price}];
+    if(state.extraRemote && !extraAlreadyInBag)addedLines.push({id:'rgb-pod-extra-remote',quantity:1,price:extraRemotePrice});
+    trackAdEvent('AddToCart',addedLines);
     if (panel.open || control.hasAttribute('data-open-bag')) showCart();
     else notify(products.get(add).name + ' added to bag');
   } else if (qty) {
@@ -540,8 +543,10 @@ if (itemPage || featuredProduct) {
 }
 document.addEventListener('change',event=>{
   if (!['extra-remote','bag-extra-remote'].includes(event.target.id)) return;
+  const extraAlreadyInBag=Boolean(state.cart['rgb-pod'] && state.extraRemote);
   state.itemExtraRemote=event.target.checked;
   if (state.cart['rgb-pod']) state.extraRemote=event.target.checked;
+  if(state.cart['rgb-pod'] && state.extraRemote && !extraAlreadyInBag)trackAdEvent('AddToCart',[{id:'rgb-pod-extra-remote',quantity:1,price:extraRemotePrice}]);
   persistCart();
   if (itemPage) {
     find('#extra-remote').checked=state.itemExtraRemote;
