@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex"><title>Beampak — Store Management</title>
+  <meta name="robots" content="noindex"><title>Beampak — Database Manager</title>
   <link rel="icon" href="/media/icon.png"><link rel="stylesheet" href="/store.css"><script type="module" src="/manage.js"></script>
 </head>
 <body>
   <header class="header"><div class="shell header-inner"><a class="brand" href="/" aria-label="Beampak storefront"><span class="brand-mark" aria-hidden="true"></span><span>BEAM<i>PAK</i></span></a></div></header>
   <main class="shell manager">
-    <h1>STORE MANAGEMENT</h1>
+    <h1>DATABASE MANAGER</h1>
     <div class="panel-body">
       <p class="manager-notice" id="manager-notice">Sign in with your store access key. On the private Sites deployment, the store owner can use their signed-in account.</p>
       <form class="stack" id="manage-login" method="post">
@@ -16,30 +16,46 @@
         <button class="btn btn-primary" disabled>Open store manager</button>
       </form>
       <button id="owner-open" class="btn btn-ghost" type="button" hidden>Open as signed-in owner</button>
+      <nav class="database-navigation" id="database-navigation" aria-label="Database tables" hidden><a href="#manage-interest">Submissions</a><a href="#visitor-activity">Visits</a><a href="#orders-title">Previous orders</a><button class="btn btn-ghost" id="lock" type="button">Lock database</button></nav>
       <section class="manage-interest" id="visitor-activity" aria-labelledby="activity-title" hidden>
-        <div class="manage-interest-header"><h2 id="activity-title">Visitor activity</h2><label>Period<select id="activity-period"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="0">All time</option></select></label><button type="button" class="btn btn-ghost" id="activity-refresh">Refresh activity</button></div>
+        <div class="manage-interest-header"><h2 id="activity-title">Visits</h2><button type="button" class="btn btn-ghost" id="activity-refresh">Refresh</button><button type="button" class="btn btn-primary" id="activity-export">Export CSV</button></div>
+        <form id="activity-filter" class="database-filters">
+          <label>Search visits<input name="q" type="search" maxlength="120" placeholder="Browser or visit ID"></label>
+          <label>Period<select id="activity-period" name="days"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="0">All time</option></select></label>
+          <label>Device<select name="device"><option value="">All devices</option><option value="mobile">Mobile</option><option value="tablet">Tablet</option><option value="desktop">Desktop</option></select></label>
+          <label>Stage<select name="stage"><option value="">All stages</option><option value="browsing">Browsing</option><option value="checkout">Reached checkout</option><option value="submitted">Submitted</option></select></label>
+          <label>Source<input name="source" maxlength="120" placeholder="e.g. ig or fb"></label>
+          <label>Sort<select name="sort"><option value="newest">Recent first</option><option value="oldest">Earliest first</option></select></label>
+          <button class="btn btn-primary" type="submit">Apply filters</button><button class="btn btn-ghost" type="button" id="activity-reset">Clear</button>
+        </form>
         <p id="activity-summary"></p>
-        <p id="activity-feedback" role="status"></p>
-        <div id="activity-visits" class="activity-visits"></div>
+        <p id="activity-feedback" role="status"></p><p id="activity-export-status" role="status"></p>
+        <div class="database-table-wrap" tabindex="0" role="region" aria-label="Visits table"><table class="database-table"><thead><tr><th scope="col">Browser</th><th scope="col">Device</th><th scope="col">Stage</th><th scope="col">Page views</th><th scope="col">Events</th><th scope="col">Last activity</th><th scope="col">Source / campaign</th><th scope="col">Visit</th></tr></thead><tbody id="activity-visits"></tbody></table></div>
         <button type="button" class="btn btn-ghost" id="activity-more-visits" hidden>Show earlier visits</button>
-        <section id="activity-timeline" hidden><h3 id="activity-visit-title"></h3><ol id="activity-events" class="activity-events"></ol><button type="button" class="btn btn-ghost" id="activity-more-events" hidden>Show more activity</button></section>
+        <section id="activity-timeline" hidden><div class="manage-interest-header"><h3 id="activity-visit-title"></h3><button type="button" class="btn btn-primary" id="activity-export-events">Export visit CSV</button></div><p id="activity-visit-id" class="record-identifiers"></p><div class="database-table-wrap" tabindex="0" role="region" aria-label="Visit events table"><table class="database-table"><thead><tr><th scope="col">Time</th><th scope="col">Action</th><th scope="col">Page</th><th scope="col">Details</th></tr></thead><tbody id="activity-events"></tbody></table></div><button type="button" class="btn btn-ghost" id="activity-more-events" hidden>Show more activity</button></section>
       </section>
       <section class="manage-interest" id="manage-interest" aria-labelledby="interest-title" hidden>
-        <div class="manage-interest-header"><h2 id="interest-title">Checkout confirmations</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh confirmations</button></div>
-        <p id="interest-totals" role="status"></p>
-        <p>One confirmation per product for each browser or supplied mobile number. Recorded for demand tracking.</p>
-        <ul id="interest-campaigns" class="interest-campaigns"></ul>
-        <p id="prior-requests" hidden></p>
-        <p id="confirmation-error" class="form-error" role="alert" hidden></p>
-        <div id="confirmation-details" class="manage-orders"></div>
-        <button id="more-confirmations" class="btn btn-ghost" type="button" hidden>Show earlier confirmations</button>
+        <div class="manage-interest-header"><h2 id="interest-title">Customer submissions</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh</button><button class="btn btn-primary" id="export-confirmations" type="button">Export CSV</button></div>
+        <form id="confirmation-filter" class="database-filters">
+          <label>Search submissions<input name="q" type="search" maxlength="120" placeholder="Name, email, phone, address or campaign"></label>
+          <label>Period<select name="days"><option value="0">All time</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label>
+          <label>Source<input name="source" maxlength="120" placeholder="e.g. ig or fb"></label>
+          <label>Sort<select name="sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="pieces_desc">Most pieces</option><option value="pieces_asc">Fewest pieces</option></select></label>
+          <button class="btn btn-primary" type="submit">Apply filters</button><button class="btn btn-ghost" type="button" id="confirmation-reset">Clear</button>
+        </form>
+        <p id="interest-totals" role="status"></p><p id="confirmation-export-status" role="status"></p>
+        <details class="database-breakdown"><summary>Campaign breakdown</summary><ul id="interest-campaigns" class="interest-campaigns"></ul></details>
+        <p id="prior-requests" hidden></p><p id="confirmation-error" class="form-error" role="alert" hidden></p>
+        <div class="database-table-wrap" tabindex="0" role="region" aria-label="Customer submissions table"><table class="database-table"><thead><tr><th scope="col">Confirmed</th><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Mobile</th><th scope="col">Pieces</th><th scope="col">Subtotal</th><th scope="col">Campaign</th><th scope="col">Record</th></tr></thead><tbody id="confirmation-details"></tbody></table></div>
+        <p id="confirmation-empty" hidden>No matching submissions.</p>
+        <button id="more-confirmations" class="btn btn-ghost" type="button" hidden>Show more rows</button>
       </section>
       <h2 id="orders-title" hidden>Previous orders</h2>
       <form class="manage-tools" id="manage-filter" aria-labelledby="orders-title" hidden>
         <label>Order reference<input name="reference" placeholder="BP-XXXXXXXXXX" maxlength="13"></label>
         <label>Order status<select name="status"><option value="">All statuses</option></select></label>
         <button class="btn btn-primary">Find orders</button>
-        <button class="btn btn-ghost" id="lock" type="button">Lock view</button>
+
       </form>
       <p class="form-error" role="alert" id="manager-error" hidden></p>
       <p id="manager-result" role="status"></p>
@@ -47,5 +63,6 @@
       <button class="btn btn-ghost" type="button" id="more-orders" hidden>Load older orders</button>
     </div>
   </main>
+  <dialog id="record-dialog" class="panel record-dialog" aria-labelledby="record-title"><div class="panel-head"><h2 id="record-title"></h2><button type="button" id="record-close" class="btn btn-ghost">Close</button></div><div id="record-body" class="panel-body"></div></dialog>
 </body>
 </html>
