@@ -91,3 +91,9 @@ https://beampak.netlify.app/products/multicolour-led-pod-kit?utm_source=facebook
 ```
 
 The Submissions table in `/manage` is the source of saved demand counts and includes campaign details. The Visits table shows page and shopping activity. Use the Facebook source filter to exclude owner checks tagged `launch_audit`. Browser blockers or interrupted connections can affect activity events, so saved submissions and visitor events are different measures.
+
+## Mobile performance
+
+Responsive WebP variants are checked in under `web/media/fast/`; original artwork remains available. Regenerate the variants and browser manifest with **npm run optimize:images** when source images change. The pod and accessory variants use lossless WebP encoding after resizing, with compact PNG fallbacks for older browsers. Both deployment builds add a content fingerprint to optimized image URLs, allowing long browser caching while refreshing changed artwork.
+
+The default bundle is rendered in the page markup. Quantity updates reuse existing picture and accessory nodes, and critical fonts and modules are discovered early. Activity events stay in memory during rapid input, are persisted in batches, and are saved immediately before page exit. Cart and confirmation persistence retain their existing behaviour. Meta Pixel remains disabled by choice.

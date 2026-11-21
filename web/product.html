@@ -15,6 +15,16 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/media/icon.png">
   <link rel="stylesheet" href="/store.css">
+  <link rel="modulepreload" href="/catalog.js">
+  <link rel="modulepreload" href="/bundle.js">
+  <link rel="modulepreload" href="/activity.js">
+  <link rel="modulepreload" href="/marketing.js">
+  <link rel="modulepreload" href="/media.js">
+  <link rel="modulepreload" href="/media-assets.js">
+  <link rel="preload" as="font" href="/media/barlow.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="/media/barlow-italic.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="/media/inter.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" type="image/webp" href="/media/fast/pod-640.webp" imagesrcset="/media/fast/pod-160.webp 160w, /media/fast/pod-320.webp 320w, /media/fast/pod-640.webp 640w, /media/fast/pod-960.webp 960w" imagesizes="310px" fetchpriority="high">
   <script type="module" src="/store.js"></script>
 </head>
 <body>
@@ -40,15 +50,15 @@
     <section class="item-overview" aria-labelledby="item-title">
       <div class="item-gallery">
         <figure class="item-image bundle-image">
-          <div id="quantity-preview" class="quantity-preview bundle-preview" role="img" aria-label="1 multicolour LED pod"><img src="/media/rgb-pod-single.png" width="1536" height="1024" fetchpriority="high" alt=""></div>
-          <img id="gallery-image" src="/media/rgb-pods.jpg" width="900" height="900" alt="Original two-pod reference kit with remote, USB lead and mounts" hidden>
+          <div id="quantity-preview" class="quantity-preview bundle-preview" role="img" aria-label="1 LED pod, 1 remote, 1 mounting pad, 1 mounting ring and 1 charging lead" data-count="1" style="--pod-columns:1"><div class="bundle-pods"><picture data-media="pod"><source type="image/webp" srcset="/media/fast/pod-160.webp 160w, /media/fast/pod-320.webp 320w, /media/fast/pod-640.webp 640w, /media/fast/pod-960.webp 960w" sizes="310px"><img data-bundle-part="pod" src="/media/fast/pod-640.png" alt="" width="1536" height="1024" fetchpriority="high" decoding="async"></picture></div><div class="bundle-accessories"><div class="bundle-group" data-bundle-group="remote" data-accessory-count="1"><div class="bundle-accessory-pictures"><span class="accessory-sprite accessory-remote" data-bundle-part="remote" aria-hidden="true"></span></div><p>Remote × 1</p></div><div class="bundle-group" data-bundle-group="pad" data-accessory-count="1"><div class="bundle-accessory-pictures"><span class="accessory-sprite accessory-pad" data-bundle-part="pad" aria-hidden="true"></span></div><p>Mounting pads × 1</p></div><div class="bundle-group" data-bundle-group="ring" data-accessory-count="1"><div class="bundle-accessory-pictures"><span class="accessory-sprite accessory-ring" data-bundle-part="ring" aria-hidden="true"></span></div><p>Mounting rings × 1</p></div><div class="bundle-group" data-bundle-group="charging" data-accessory-count="1"><div class="bundle-accessory-pictures"><span class="accessory-sprite accessory-single" data-bundle-part="single" aria-hidden="true"></span></div><p>Charging leads × 1</p></div></div></div>
+          <picture id="gallery-picture" hidden><source type="image/webp"><img id="gallery-image" width="900" height="900" alt="Original two-pod reference kit with remote, USB lead and mounts" hidden></picture>
           <figcaption id="gallery-caption" aria-live="polite">1-pod bundle · bundle illustration</figcaption>
         </figure>
         <div class="item-thumbs" role="group" aria-label="Product images">
-          <button data-gallery="0" aria-pressed="true"><img src="/media/rgb-pod-single.png" alt="" width="58" height="50"><span>Your bundle</span></button>
-          <button data-gallery="1" aria-pressed="false"><img src="/media/led-pod-civic-detail.jpg" alt="" width="58" height="50"><span>Car footwell</span></button>
-          <button data-gallery="2" aria-pressed="false"><img src="/media/led-pod-bike-detail.jpg" alt="" width="58" height="50"><span>Motorcycle</span></button>
-          <button data-gallery="3" aria-pressed="false"><img src="/media/rgb-pods.jpg" width="58" height="50" alt=""><span>Kit reference</span></button>
+          <button data-gallery="0" aria-pressed="true"><picture data-media="pod"><source type="image/webp" srcset="/media/fast/pod-160.webp 160w, /media/fast/pod-320.webp 320w, /media/fast/pod-640.webp 640w, /media/fast/pod-960.webp 960w" sizes="58px"><img src="/media/fast/pod-640.png" alt="" width="58" height="50" fetchpriority="low" decoding="async"></picture><span>Your bundle</span></button>
+          <button data-gallery="1" aria-pressed="false"><picture data-media="carUse"><source type="image/webp" srcset="/media/fast/carUse-160.webp 160w, /media/fast/carUse-640.webp 640w, /media/fast/carUse-1100.webp 1100w" sizes="58px"><img src="/media/led-pod-civic-detail.jpg" alt="" width="58" height="50" fetchpriority="low" decoding="async"></picture><span>Car footwell</span></button>
+          <button data-gallery="2" aria-pressed="false"><picture data-media="bikeUse"><source type="image/webp" srcset="/media/fast/bikeUse-160.webp 160w, /media/fast/bikeUse-640.webp 640w, /media/fast/bikeUse-1100.webp 1100w" sizes="58px"><img src="/media/led-pod-bike-detail.jpg" alt="" width="58" height="50" fetchpriority="low" decoding="async"></picture><span>Motorcycle</span></button>
+          <button data-gallery="3" aria-pressed="false"><picture data-media="kit"><source type="image/webp" srcset="/media/fast/kit-160.webp 160w, /media/fast/kit-640.webp 640w" sizes="58px"><img src="/media/rgb-pods.jpg" alt="" width="58" height="50" fetchpriority="low" decoding="async"></picture><span>Kit reference</span></button>
         </div>
       </div>
       <div class="item-buy" data-item-page="rgb-pod">
@@ -90,11 +100,11 @@
       <div class="section-head"><div><p class="eyebrow"><span></span> CAR &amp; MOTORCYCLE</p><h2 id="in-use-title">SEE THE <em>GLOW.</em></h2></div><p class="section-caption">AI-generated illustrations of possible installations.</p></div>
       <div class="editorial-grid">
         <figure class="editorial-card">
-          <img src="/media/led-pod-civic-detail.jpg" width="1100" height="733" loading="lazy" alt="Close-up illustration of a lit purple LED pod beneath a Civic passenger dashboard">
+          <picture data-media="carUse"><source type="image/webp" srcset="/media/fast/carUse-160.webp 160w, /media/fast/carUse-640.webp 640w, /media/fast/carUse-1100.webp 1100w" sizes="(max-width:620px) 100vw, 48vw"><img src="/media/led-pod-civic-detail.jpg" alt="Close-up illustration of a lit purple LED pod beneath a Civic passenger dashboard" width="1100" height="733" loading="lazy" decoding="async"></picture>
           <figcaption><h3>Civic passenger footwell</h3><p>Mount under the passenger-side dash, away from pedals, airbag panels and seat rails.</p></figcaption>
         </figure>
         <figure class="editorial-card">
-          <img src="/media/led-pod-bike-detail.jpg" width="1100" height="733" loading="lazy" alt="Close-up illustration of a lit blue LED pod attached beneath a parked motorcycle seat">
+          <picture data-media="bikeUse"><source type="image/webp" srcset="/media/fast/bikeUse-160.webp 160w, /media/fast/bikeUse-640.webp 640w, /media/fast/bikeUse-1100.webp 1100w" sizes="(max-width:620px) 100vw, 48vw"><img src="/media/led-pod-bike-detail.jpg" alt="Close-up illustration of a lit blue LED pod attached beneath a parked motorcycle seat" width="1100" height="733" loading="lazy" decoding="async"></picture>
           <figcaption><h3>Motorcycle side panel</h3><p>Choose a sheltered spot away from the exhaust, wheels, chain and suspension.</p></figcaption>
         </figure>
       </div>

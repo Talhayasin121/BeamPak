@@ -15,7 +15,7 @@ function assetResponse(path,request,assets) {
   const file = exists ? assets[filePath] : assets['/404.html'];
   const [type, encoded] = file;
   const headers = {'Content-Type':type,'Content-Security-Policy':contentSecurity,'X-Content-Type-Options':'nosniff',
-    'Referrer-Policy':'strict-origin-when-cross-origin','Cache-Control':path.startsWith('/media/') ? 'public, max-age=3600' : 'no-cache'};
+    'Referrer-Policy':'strict-origin-when-cross-origin','Cache-Control':path.startsWith('/media/fast/') ? 'public, max-age=31536000, immutable' : path.startsWith('/media/') ? 'public, max-age=3600' : 'no-cache'};
   return new Response(request.method === 'HEAD' ? null : Uint8Array.from(atob(encoded),character=>character.charCodeAt(0)),{status:exists ? 200 : 404,headers});
 }
 

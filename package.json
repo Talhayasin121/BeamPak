@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "optimize:images": "node scripts/optimize-images.mjs",
     "test": "node --test tests/*.test.mjs",
     "build": "node scripts/build.mjs",
     "start": "node scripts/preview.mjs",
@@ -10,5 +11,8 @@
   },
   "dependencies": {
     "@netlify/database": "2.0.3"
+  },
+  "devDependencies": {
+    "sharp": "0.35.5"
   }
 }

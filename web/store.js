@@ -2,6 +2,7 @@ import {catalog, extraRemotePrice, maxOrderQuantity} from './catalog.js';
 import {trackAdEvent} from './marketing.js';
 import {campaign,recordActivity} from './activity.js';
 import {bundleContents} from './bundle.js';
+import {pictureMarkup,configurePicture} from './media.js';
 
 const icons = {
   chat:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L4 20l1-3.8a8.5 8.5 0 1 1 15.5-4.7Z"/><path d="M9.1 8.1c-.4.3-.6.8-.5 1.4.3 2.2 2.6 4.4 4.9 4.8.6.1 1.1-.1 1.4-.5l.4-.6-2.2-1.1-.6.7c-1.1-.4-1.9-1.3-2.3-2.3l.7-.6-1.1-2.2-.7.4Z"/>',
@@ -26,6 +27,9 @@ const itemPage = find('[data-item-page]');
 const money = amount => 'Rs. ' + amount.toLocaleString('en-PK');
 const unitPrice = item => money(item.price) + (item.unit ? ' / ' + item.unit : '');
 const products = new Map(catalog.map(item => [item.id, item]));
+function productPhoto(item,options={}) {
+  return item.id==='rgb-pod' ? pictureMarkup('pod',options) : '<img src="/media/'+item.image+'" alt="" width="'+(options.width||512)+'" height="'+(options.height||512)+'"'+(options.loading?' loading="'+options.loading+'"':'')+' decoding="async">';
+}
 const escapes = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const safe = value => String(value).replace(/[&<>"']/g, character => escapes[character]);
 const state = {filter:'all', search:'', sort:'featured', availableOnly:false, cart:{}, extraRemote:false, itemExtraRemote:false, screen:'', opener:null, submittingConfirmation:false, itemQuantity:1};
@@ -58,6 +62,7 @@ function showSlide(index) {
   const image = hero.querySelector('.hero-image');
   hero.dataset.scene = index;
   image.src = '/media/' + slide.image;
+  configurePicture(image.closest('picture'),['hero','civic','grande'][index],'100vw');
   image.alt = slide.alt;
   find('#hero-scene').textContent = slide.caption;
   hero.querySelectorAll('[data-slide]').forEach(button => {
@@ -90,7 +95,7 @@ function renderCatalog() {
     const productLink = (className, content, label = item.name) => item.page
       ? '<a class="' + className + '" href="' + item.page + '" aria-label="View ' + label + '">' + content + '</a>'
       : '<button class="' + className + '" data-product="' + item.id + '" aria-label="View ' + label + '">' + content + '</button>';
-    const media = productLink('product-media', '<img src="/media/' + item.image + '" width="512" height="512" loading="lazy" alt="">' + badge,item.name + ' · ' + availability);
+    const media = productLink('product-media', productPhoto(item,{width:512,height:512,loading:'lazy',sizes:'(max-width:760px) 45vw, (max-width:1030px) 30vw, 300px'}) + badge,item.name + ' · ' + availability);
     return '<article class="product">' + media +
       '<div class="product-body"><div class="product-meta"><span>' + item.category + '</span><span class="swatches" aria-hidden="true">' + colors + '</span></div><h3 class="product-title">' +
       productLink('text-button', item.name) + '</h3><div class="product-end"><span class="price">' + unitPrice(item) + old + '</span>' + addButton + '</div></div></article>';
@@ -147,7 +152,7 @@ function showCart(focusSelector) {
   const entries = Object.entries(state.cart);
   const lines = entries.map(([id, quantity]) => {
     const item = products.get(id);
-    return '<div class="cart-row"><img src="/media/' + item.image + '" alt=""><div><h3>' + item.name + '</h3><div class="stepper"><button data-qty="' + id + '" data-step="-1" aria-label="Decrease quantity of ' + item.name + '">−</button><span>' + quantity + '</span><button data-qty="' + id + '" data-step="1" aria-label="Increase quantity of ' + item.name + '">+</button><button class="remove" data-qty="' + id + '" data-step="0">Remove</button></div></div><span class="price">' + money(item.price * quantity) + '</span></div>';
+    return '<div class="cart-row">' + productPhoto(item,{sizes:'68px',width:68,height:68}) + '<div><h3>' + item.name + '</h3><div class="stepper"><button data-qty="' + id + '" data-step="-1" aria-label="Decrease quantity of ' + item.name + '">−</button><span>' + quantity + '</span><button data-qty="' + id + '" data-step="1" aria-label="Increase quantity of ' + item.name + '">+</button><button class="remove" data-qty="' + id + '" data-step="0">Remove</button></div></div><span class="price">' + money(item.price * quantity) + '</span></div>';
   }).join('');
   const remoteOption = state.cart['rgb-pod'] ? '<label class="remote-option"><input id="bag-extra-remote" type="checkbox"' + (state.extraRemote?' checked':'') + '><span><strong>Add an extra remote · +Rs. 100</strong><small>One remote is already included with your bundle.</small></span></label>' : '';
   const contents = entries.length ? lines + remoteOption + totals() + '<p>Stock and delivery dates are pending confirmation.</p><button class="btn btn-primary wide-button" data-action="checkout">Continue to checkout ' + icon('arrow') + '</button>'
@@ -161,7 +166,7 @@ function showProduct(id) {
   const purchase = item.confirmable
     ? '<p class="detail-stock stock-available">Stock pending</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
     : '<p class="detail-stock stock-unavailable">Out of stock</p>';
-  openPanel('product', item.name, '<div class="product-detail"><img src="/media/' + item.image + '" alt="' + item.name + '"><div><p class="eyebrow">' + item.category + '</p><p class="price">' + money(item.price) + '</p><p>' + item.detail + '</p><ul>' + item.specs.map(spec => '<li>' + spec + '</li>').join('') + '</ul>' + purchase + '</div></div>', 'wide');
+  openPanel('product', item.name, '<div class="product-detail">' + productPhoto(item,{sizes:'400px',alt:item.name}) + '<div><p class="eyebrow">' + item.category + '</p><p class="price">' + money(item.price) + '</p><p>' + item.detail + '</p><ul>' + item.specs.map(spec => '<li>' + spec + '</li>').join('') + '</ul>' + purchase + '</div></div>', 'wide');
 }
 const phoneField = '<label>Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" required maxlength="24"></label>';
 function showUnavailable() {
@@ -195,64 +200,94 @@ function showResult(order) {
 }
 const gallery = [
   {quantity:true},
-  {image:'led-pod-civic-detail.jpg',alt:'Purple LED pod illuminating a car footwell',caption:'Car footwell · installation illustration'},
-  {image:'led-pod-bike-detail.jpg',alt:'Blue LED pod illuminating a motorcycle side panel',caption:'Motorcycle · installation illustration'},
-  {image:'rgb-pods.jpg',alt:'Original two-pod reference kit with remote, charging cable and mounts',caption:'Original two-pod kit · accessory reference'}
+  {image:'led-pod-civic-detail.jpg',media:'carUse',alt:'Purple LED pod illuminating a car footwell',caption:'Car footwell · installation illustration'},
+  {image:'led-pod-bike-detail.jpg',media:'bikeUse',alt:'Blue LED pod illuminating a motorcycle side panel',caption:'Motorcycle · installation illustration'},
+  {image:'rgb-pods.jpg',media:'kit',alt:'Original two-pod reference kit with remote, charging cable and mounts',caption:'Original two-pod kit · accessory reference'}
 ];
+let previewElements;
+const previewPool=new Map();
+function setPreviewChildren(parent,children) {
+  children.forEach((child,index)=>{if(parent.children[index]!==child)parent.insertBefore(child,parent.children[index]||null);});
+  while(parent.children.length>children.length)parent.lastElementChild.remove();
+}
+function previewParts(type,count) {
+  const pool=previewPool.get(type)||[];
+  previewPool.set(type,pool);
+  while(pool.length<count) {
+    let node;
+    if(type==='pod') {
+      if(pool[0])node=pool[0].cloneNode(true);
+      else {
+        const template=document.createElement('template');
+        template.innerHTML=pictureMarkup('pod',{sizes:'310px',fetchpriority:'low'});
+        node=template.content.firstElementChild;
+      }
+      node.querySelector('img').dataset.bundlePart='pod';
+      node.querySelector('img').fetchPriority='low';
+    } else {
+      node=document.createElement('span');
+      node.className='accessory-sprite accessory-'+type;
+      node.dataset.bundlePart=type;
+      node.setAttribute('aria-hidden','true');
+    }
+    pool.push(node);
+  }
+  return pool.slice(0,count);
+}
+function prepareQuantityPreview(container) {
+  if(previewElements)return previewElements;
+  for(const part of container.querySelectorAll('[data-bundle-part]')) {
+    const type=part.dataset.bundlePart, pool=previewPool.get(type)||[];
+    pool.push(type==='pod'?part.closest('picture'):part);
+    previewPool.set(type,pool);
+  }
+  let podGrid=container.querySelector('.bundle-pods'), accessories=container.querySelector('.bundle-accessories');
+  if(!podGrid || !accessories) {
+    container.replaceChildren();
+    podGrid=document.createElement('div');podGrid.className='bundle-pods';
+    accessories=document.createElement('div');accessories.className='bundle-accessories';
+    container.append(podGrid,accessories);
+  }
+  const groups=new Map();
+  for(const type of ['remote','pad','ring','charging']) {
+    let group=accessories.querySelector('[data-bundle-group="'+type+'"]');
+    if(!group) {
+      group=document.createElement('div');group.className='bundle-group';group.dataset.bundleGroup=type;
+      const pictures=document.createElement('div');pictures.className='bundle-accessory-pictures';
+      group.append(pictures,document.createElement('p'));accessories.append(group);
+    }
+    groups.set(type,{section:group,pictures:group.querySelector('.bundle-accessory-pictures'),heading:group.querySelector('p')});
+  }
+  return (previewElements={podGrid,accessories,groups});
+}
 function renderQuantityPreview() {
-  const container=find('#quantity-preview');
-  const quantity=state.itemQuantity;
+  const container=find('#quantity-preview'), quantity=state.itemQuantity;
   const bundle=bundleContents(quantity,state.itemExtraRemote);
-  container.replaceChildren();
+  const elements=prepareQuantityPreview(container);
   if(bundle) {
+    if(!container.contains(elements.podGrid))container.replaceChildren(elements.podGrid,elements.accessories);
     const columns=quantity<=2?quantity:quantity<=4?2:quantity<=12?4:5;
     container.style.setProperty('--pod-columns',columns);
     container.dataset.count=quantity;
     const description=quantity+' LED '+(quantity===1?'pod':'pods')+', '+bundle.remotes+' '+(bundle.remotes===1?'remote':'remotes')+', '+bundle.pads+' mounting pads, '+bundle.rings+' mounting rings and '+bundle.chargingLeads+' charging '+(bundle.chargingLeads===1?'lead':'leads');
     container.setAttribute('aria-label',description);
     find('#bundle-includes').textContent='Your bundle includes '+description+'.';
-    const podGrid=document.createElement('div');
-    podGrid.className='bundle-pods';
-    const pods=Array.from({length:quantity},()=>{
-      const image=document.createElement('img');
-      image.src='/media/rgb-pod-single.png';
-      image.alt='';
-      image.dataset.bundlePart='pod';
-      image.width=1536;
-      image.height=1024;
-      image.decoding='async';
-      return image;
-    });
-    podGrid.append(...pods);
-    container.append(podGrid);
-    const accessoryGrid=document.createElement('div');
-    accessoryGrid.className='bundle-accessories';
-    const groups=[
-      {label:'Remote',count:bundle.remotes,parts:[['remote',bundle.remotes]]},
-      {label:'Mounting pads',count:bundle.pads,parts:[['pad',bundle.pads]]},
-      {label:'Mounting rings',count:bundle.rings,parts:[['ring',bundle.rings]]},
-      {label:'Charging leads',count:bundle.chargingLeads,parts:[['single',bundle.singleLeads],['split',bundle.splitLeads]]}
-    ];
-    for(const group of groups) {
-      const section=document.createElement('div'), heading=document.createElement('p'), pictures=document.createElement('div');
-      section.className='bundle-group';
-      section.dataset.accessoryCount=group.count;
-      section.style.setProperty('--accessory-size',group.count>8?'30px':group.count>4?'40px':'64px');
-      heading.textContent=group.label+' × '+group.count;
-      pictures.className='bundle-accessory-pictures';
-      for(const [part,count]of group.parts) {
-        for(let i=0;i<count;i++) {
-          const picture=document.createElement('span');
-          picture.className='accessory-sprite accessory-'+part;
-          picture.dataset.bundlePart=part;
-          picture.setAttribute('aria-hidden','true');
-          pictures.append(picture);
-        }
-      }
-      section.append(pictures,heading);
-      accessoryGrid.append(section);
+    const pods=previewParts('pod',quantity);
+    const sizes=quantity===1?'310px':'(max-width:620px) calc((100vw - 64px) / '+columns+'), '+(quantity<=4?250:150)+'px';
+    pods.forEach(picture=>configurePicture(picture,'pod',sizes));
+    setPreviewChildren(elements.podGrid,pods);
+    for(const [type,label,count,parts]of [
+      ['remote','Remote',bundle.remotes,[['remote',bundle.remotes]]],
+      ['pad','Mounting pads',bundle.pads,[['pad',bundle.pads]]],
+      ['ring','Mounting rings',bundle.rings,[['ring',bundle.rings]]],
+      ['charging','Charging leads',bundle.chargingLeads,[['single',bundle.singleLeads],['split',bundle.splitLeads]]]
+    ]) {
+      const group=elements.groups.get(type);
+      group.section.dataset.accessoryCount=count;
+      group.section.style.setProperty('--accessory-size',count>8?'30px':count>4?'40px':'64px');
+      group.heading.textContent=label+' × '+count;
+      setPreviewChildren(group.pictures,parts.flatMap(([part,number])=>previewParts(part,number)));
     }
-    container.append(accessoryGrid);
     find('#gallery-caption').textContent=quantity+'-pod bundle · '+bundle.remotes+' '+(bundle.remotes===1?'remote':'remotes')+' · bundle illustration';
   } else {
     delete container.dataset.count;
@@ -263,15 +298,18 @@ function renderQuantityPreview() {
     find('#bundle-includes').textContent='';
   }
 }
+
 function showGallery(index) {
   const photo=gallery[index];
   if(!photo)return;
   const image=find('#gallery-image');
+  const picture=image.closest('picture');
   find('#quantity-preview').hidden=!photo.quantity;
+  picture.hidden=Boolean(photo.quantity);
   image.hidden=Boolean(photo.quantity);
   if(photo.quantity)renderQuantityPreview();
   else {
-    image.src='/media/'+photo.image;
+    configurePicture(picture,photo.media,'(max-width:620px) calc(100vw - 36px), 600px');
     image.alt=photo.alt;
     find('#gallery-caption').textContent=photo.caption;
   }
@@ -302,7 +340,7 @@ function updateSearchResults(query) {
   panel.querySelector('.search-results').innerHTML = matches.length ? matches.map(item => {
     const attributes = item.page ? '<a href="' + item.page + '"' : '<button type="button" data-product="' + item.id + '"';
     const endTag = item.page ? '</a>' : '</button>';
-    return attributes + ' class="search-result"><img src="/media/' + item.image + '" alt=""><span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.confirmable ? 'Stock pending' : 'Out of stock') + '</small></span>' + endTag;
+    return attributes + ' class="search-result">' + productPhoto(item,{width:52,height:52,sizes:'52px'}) + '<span><strong>' + item.name + '</strong><small>' + unitPrice(item) + ' · ' + (item.confirmable ? 'Stock pending' : 'Out of stock') + '</small></span>' + endTag;
   }).join('') : '<p>No matching products.</p>';
 }
 function toggleMenu(open) {

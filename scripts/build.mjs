@@ -1,7 +1,8 @@
 import {existsSync,mkdirSync,readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {extname,join} from 'node:path';
+import {versionMedia} from './media-version.mjs';
 
-const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.xml':'application/xml; charset=utf-8'};
+const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.xml':'application/xml; charset=utf-8'};
 const assets = {};
 function collect(directory,prefix='') {
   for (const entry of readdirSync(directory,{withFileTypes:true})) {
@@ -9,7 +10,10 @@ function collect(directory,prefix='') {
     if (entry.isDirectory()) collect(path,prefix+'/'+entry.name);
     else {
       const type = types[extname(entry.name)];
-      if (type) assets[prefix+'/'+entry.name] = [type,readFileSync(path).toString('base64')];
+      if (type) {
+        const data=readFileSync(path);
+        assets[prefix+'/'+entry.name]=[type,['.html','.js','.css'].includes(extname(entry.name))?Buffer.from(versionMedia(data.toString('utf8'))).toString('base64'):data.toString('base64')];
+      }
     }
   }
 }

@@ -15,6 +15,16 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/media/icon.png">
   <link rel="stylesheet" href="/store.css">
+  <link rel="modulepreload" href="/catalog.js">
+  <link rel="modulepreload" href="/bundle.js">
+  <link rel="modulepreload" href="/activity.js">
+  <link rel="modulepreload" href="/marketing.js">
+  <link rel="modulepreload" href="/media.js">
+  <link rel="modulepreload" href="/media-assets.js">
+  <link rel="preload" as="font" href="/media/barlow.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="/media/barlow-italic.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="/media/inter.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="image" type="image/webp" href="/media/fast/hero-640.webp" imagesrcset="/media/fast/hero-640.webp 640w, /media/fast/hero-1280.webp 1280w, /media/fast/hero-1920.webp 1536w" imagesizes="100vw" fetchpriority="high">
   <script type="module" src="/store.js"></script>
 </head>
 <body>
@@ -38,7 +48,7 @@
   </header>
   <main id="main">
     <section class="hero" id="after-dark" aria-label="Beampak After Dark collection">
-      <img class="hero-image" src="/media/hero.jpg" alt="Modified sports coupe with purple underglow at night" fetchpriority="high">
+      <picture data-media="hero"><source type="image/webp" srcset="/media/fast/hero-640.webp 640w, /media/fast/hero-1280.webp 1280w, /media/fast/hero-1920.webp 1536w" sizes="100vw"><img src="/media/hero.jpg" alt="Modified sports coupe with purple underglow at night" width="1536" height="1024" fetchpriority="high" decoding="async" class="hero-image"></picture>
       <div class="hero-shade"></div>
       <div class="shell hero-inner">
         <div class="hero-content">
@@ -53,9 +63,9 @@
         <div class="hero-footer">
           <p class="hero-scene" id="hero-scene" aria-live="polite"></p>
           <div class="slide-buttons" role="group" aria-label="Choose an After Dark scene">
-            <button data-slide="0" aria-current="true"><img src="/media/hero.jpg" alt="" width="64" height="42"><span>Original</span></button>
-            <button data-slide="1" aria-label="2025 Honda Civic RS in Lahore" aria-current="false"><img src="/media/hero-civic-2025.jpg" alt="" width="64" height="42" loading="lazy"><span>Civic RS</span></button>
-            <button data-slide="2" aria-label="2025 Toyota Corolla Altis X Grande in Lahore" aria-current="false"><img src="/media/hero-grande-2025.jpg" alt="" width="64" height="42" loading="lazy"><span>Grande</span></button>
+            <button data-slide="0" aria-current="true"><picture data-media="hero"><source type="image/webp" srcset="/media/fast/hero-160.webp 160w, /media/fast/hero-640.webp 640w, /media/fast/hero-1280.webp 1280w, /media/fast/hero-1920.webp 1536w" sizes="64px"><img src="/media/hero.jpg" alt="" width="64" height="42" fetchpriority="low" decoding="async"></picture><span>Original</span></button>
+            <button data-slide="1" aria-label="2025 Honda Civic RS in Lahore" aria-current="false"><picture data-media="civic"><source type="image/webp" srcset="/media/fast/civic-160.webp 160w, /media/fast/civic-640.webp 640w, /media/fast/civic-1280.webp 1280w" sizes="64px"><img src="/media/hero-civic-2025.jpg" alt="" width="64" height="42" loading="lazy" fetchpriority="low" decoding="async"></picture><span>Civic RS</span></button>
+            <button data-slide="2" aria-label="2025 Toyota Corolla Altis X Grande in Lahore" aria-current="false"><picture data-media="grande"><source type="image/webp" srcset="/media/fast/grande-160.webp 160w, /media/fast/grande-640.webp 640w, /media/fast/grande-1280.webp 1280w" sizes="64px"><img src="/media/hero-grande-2025.jpg" alt="" width="64" height="42" loading="lazy" fetchpriority="low" decoding="async"></picture><span>Grande</span></button>
           </div>
         </div>
       </div>
@@ -71,7 +81,7 @@
     <section class="feature shell" aria-labelledby="feature-title">
       <div class="feature-frame">
         <a class="feature-image" href="/products/multicolour-led-pod-kit#in-use" aria-label="View the LED pod installation illustration">
-          <img src="/media/led-pod-civic-detail.jpg" width="1100" height="733" loading="lazy" alt="Purple LED pod shown lighting a car footwell in an installation illustration">
+          <picture data-media="carUse"><source type="image/webp" srcset="/media/fast/carUse-160.webp 160w, /media/fast/carUse-640.webp 640w, /media/fast/carUse-1100.webp 1100w" sizes="(max-width:620px) 100vw, 48vw"><img src="/media/led-pod-civic-detail.jpg" alt="Purple LED pod shown lighting a car footwell in an installation illustration" width="1100" height="733" loading="lazy" decoding="async"></picture>
           <span>Installation illustration</span>
         </a>
         <div class="feature-copy" data-feature="rgb-pod">

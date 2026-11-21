@@ -1,7 +1,12 @@
 import {cpSync,readFileSync,writeFileSync} from 'node:fs';
+import {versionMedia} from './media-version.mjs';
 
 const directory = new URL('../dist-netlify/',import.meta.url);
 cpSync(new URL('../web/',import.meta.url),directory,{recursive:true});
+for(const name of ['index.html','product.html','store.css','media-assets.js']) {
+  const file=new URL(name,directory);
+  writeFileSync(file,versionMedia(readFileSync(file,'utf8')));
+}
 
 const pixelId = (process.env.META_PIXEL_ID || '').trim();
 const verification = (process.env.META_DOMAIN_VERIFICATION || '').trim();

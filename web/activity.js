@@ -33,8 +33,10 @@ try {
   const saved = JSON.parse(sessionStorage.getItem(pendingKey));
   if (Array.isArray(saved)) pending = saved.slice(-80).filter(item=>item?.id && item.sessionId === sessionId);
 } catch { /* Start a new queue when storage is unavailable. */ }
-let timer, sending = false, retries = 0, lastEventAt = 0;
+let timer, persistTimer, sending = false, retries = 0, lastEventAt = 0;
 function persist() {
+  clearTimeout(persistTimer);
+  persistTimer=null;
   try {sessionStorage.setItem(pendingKey,JSON.stringify(pending));} catch { /* Keep this page's queue in memory. */ }
 }
 function payload(events) {
@@ -53,7 +55,7 @@ export function recordActivity(name,details = {}) {
   if (!enabled) return;
   pending.push({id:crypto.randomUUID(),sessionId,name,page:location.pathname,at:(lastEventAt=Math.max(Date.now(),lastEventAt+1)),details,context});
   pending = pending.slice(-80);
-  persist();
+  persistTimer ||= setTimeout(persist,250);
   timer ||= setTimeout(flushActivity,4000);
 }
 export async function flushActivity() {
@@ -78,6 +80,7 @@ export async function flushActivity() {
 }
 function sendOnExit() {
   recordEngagement();
+  persist();
   clearTimeout(timer);
   timer = null;
   if (!enabled || !pending.length) return;
