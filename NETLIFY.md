@@ -6,7 +6,7 @@ The Netlify build includes the storefront, product page and WhatsApp button. Net
 
 1. In Netlify, choose **Add new project → Import an existing project**, connect GitHub and select **Talhayasin121/BeamPak**.
 2. Select **main** as the production branch and leave the base directory at the repository root.
-3. Netlify reads the build settings from netlify.toml. The build command is **npm run build:netlify**, the publish directory is **dist-netlify**, and the functions directory is **netlify/functions**. Use the repository import flow so Netlify can build the functions and apply the database migrations.
+3. Netlify reads the build settings from netlify.toml. The build command is **npm test && npm run build:netlify**, the publish directory is **dist-netlify**, and the functions directory is **netlify/functions**. Automated checks must pass before a deployment is built. Use the repository import flow so Netlify can build the functions and apply the database migrations.
 4. Under **Project configuration → Environment variables**, create **BEAMPAK_ADMIN_KEY** with a unique, randomly generated secret of at least 20 characters. Mark it as containing a secret. If Netlify offers scope selection, include **Functions**. Redeploy if you add it after the first deploy.
 5. Publish the project. On a compatible plan, Netlify provisions the database and applies the migrations from netlify/database/migrations. Confirm checkout on a deploy preview, then sign in at **/manage** with your admin key and verify the saved quantity and form details. Keep test traffic out of your production campaign totals.
 
@@ -45,7 +45,7 @@ Use this URL-parameter template in the ad’s tracking settings.
 
 The admin portal shows these labels alongside confirmation counts. Numeric IDs preserve attribution when names change. Campaign tags survive navigation from the home page to the product page in the same browser session.
 
-Before spending on ads, confirm that the Netlify deployment is public, the database accepts submissions, the admin portal lists the test, and Meta Test Events receives the configured events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
+Before spending on ads, confirm that the Netlify deployment is public, the readiness endpoint reports ready, and the store manager is accessible. Test checkout on a deploy preview so production campaign totals stay clean. Meta Pixel is optional; it is deliberately disabled for this demand test. If it is enabled later, verify its events in Meta Test Events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
 
 - [Meta Pixel standard events](https://developers.facebook.com/documentation/meta-pixel/reference)
 - [Meta conversion tracking](https://developers.facebook.com/documentation/meta-pixel/implementation/conversion-tracking)
@@ -77,3 +77,17 @@ The product details incorporate the store owner's provided specifications: USB T
 An optional extra remote costs PKR 100 once per bundle, giving two remotes in total. Product selection and bag controls use the same option, and checkout shows the charge separately. The server validates the option and computes the subtotal from the configured prices. Both database platforms append schema migrations for extra-remote quantity and historical unit price; older records default to no extra remote. The manager and CSV exports show the saved extra-remote selection and full subtotal. Stock status and confirmation collection retain their existing behaviour.
 
 The FAQs include custom design and sample enquiries, production checks and support. Customers can send WhatsApp messages 24 hours a day; an immediate response is not promised. Product and customer-help pages use consistent warranty wording.
+
+## Launch audit and manual campaign measurement
+
+`GET /api/health` checks the deployed confirmation schema and administration configuration without reading customer rows or creating a submission. A ready deployment returns HTTP 200 with `{"ready":true}`. It does not replace an end-to-end checkout test.
+
+New confirmations use a case-insensitive email key as well as the existing browser and optional phone protections. The additive migrations preserve earlier records and prevent future duplicate email submissions across browsers. No historical records are deleted.
+
+Use a distinct `utm_content` for each ad when comparing demand without Meta Pixel. Example landing URL
+
+```text
+https://beampak.netlify.app/products/multicolour-led-pod-kit?utm_source=facebook&utm_medium=paid_social&utm_campaign=led_pods_launch&utm_content=ad_a
+```
+
+The Submissions table in `/manage` is the source of saved demand counts and includes campaign details. The Visits table shows page and shopping activity. Use the Facebook source filter to exclude owner checks tagged `launch_audit`. Browser blockers or interrupted connections can affect activity events, so saved submissions and visitor events are different measures.

@@ -1,7 +1,7 @@
 import {existsSync,mkdirSync,readFileSync,readdirSync,writeFileSync} from 'node:fs';
 import {extname,join} from 'node:path';
 
-const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.woff2':'font/woff2'};
+const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.xml':'application/xml; charset=utf-8'};
 const assets = {};
 function collect(directory,prefix='') {
   for (const entry of readdirSync(directory,{withFileTypes:true})) {
