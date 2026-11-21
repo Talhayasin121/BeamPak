@@ -17,7 +17,7 @@ Open http://127.0.0.1:4173. The local preview uses a SQLite database in outputs/
 
 ## Store manager
 
-Open /manage to view checkout submissions, their form details, piece counts and campaign totals. The private Sites deployment accepts the signed-in store owner. The Netlify and local versions accept the configured store access key. The previous orders section supports order lookup and status updates.
+Open /manage to view anonymous visitor timelines, checkout submissions, their form details, piece counts and campaign totals. The private Sites deployment accepts the signed-in store owner. The Netlify and local versions accept the configured store access key. The previous orders section supports order lookup and status updates.
 
 ## Media
 

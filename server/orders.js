@@ -1,4 +1,5 @@
 import {catalog, freeShipping, maxOrderQuantity, shippingRate} from '../web/catalog.js';
+import {recordActivityBatch,getActivityReport} from './activity.js';
 
 const products = new Map(catalog.map(item => [item.id,item]));
 const statuses = ['Received','Confirmed','Shipped','Delivered','Cancelled'];
@@ -144,6 +145,7 @@ async function confirmationSummary(request,query) {
 
 async function admin(request,query,adminKey,path,data,isStoreOwner) {
   if (!isStoreOwner && !(await authorized(request,adminKey))) return error('Enter the store access key.',401);
+  if (path === '/api/manage/activity' && request.method === 'GET') return getActivityReport(request,query);
   if (path === '/api/manage/order-confirmations' && request.method === 'GET') return confirmationSummary(request,query);
   if (path === '/api/manage/interest' && request.method === 'GET') return availabilitySummary(query);
   if (path === '/api/manage/orders' && request.method === 'GET') {
@@ -198,11 +200,12 @@ export async function handleOrders(request, query, adminKey, isStoreOwner = fals
   try {
     if (path.startsWith('/api/manage/')) return await admin(request,query,adminKey,path,request.method === 'POST' ? await bodyJson(request) : null,isStoreOwner);
     if (path === '/api/interest') return error('Refresh the store to use the latest checkout.',410);
-    if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/order-confirmations') return error('Page not found.',404);
+    if (path !== '/api/orders' && path !== '/api/orders/lookup' && path !== '/api/order-confirmations' && path !== '/api/activity') return error('Page not found.',404);
     if (request.method !== 'POST') return error('Method not allowed.',405);
     if (path === '/api/orders' && !catalog.some(item => item.inStock)) return error('Orders are paused. Visit the product page for current stock information.',409);
     const data = await bodyJson(request);
     if (!data) return error('Check the information you entered and try again.');
+    if (path === '/api/activity') return await recordActivityBatch(data,query);
     if (path === '/api/order-confirmations') return await confirmOrder(data,query);
     return path === '/api/orders' ? await checkout(data,query) : await lookup(data,query);
   } catch (failure) {

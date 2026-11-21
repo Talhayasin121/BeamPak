@@ -1,5 +1,6 @@
 import {catalog, maxOrderQuantity} from './catalog.js';
 import {trackAdEvent} from './marketing.js';
+import {campaign,recordActivity} from './activity.js';
 
 const icons = {
   chat:'<path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L4 20l1-3.8a8.5 8.5 0 1 1 15.5-4.7Z"/><path d="M9.1 8.1c-.4.3-.6.8-.5 1.4.3 2.2 2.6 4.4 4.9 4.8.6.1 1.1-.1 1.4-.5l.4-.6-2.2-1.1-.6.7c-1.1-.4-1.9-1.3-2.3-2.3l.7-.6-1.1-2.2-.7.4Z"/>',
@@ -134,6 +135,7 @@ function totals() {
   return '<div class="totals"><p><span>Product subtotal</span><span>' + money(cartSubtotal()) + '</span></p></div>';
 }
 function showCart(focusSelector) {
+  recordActivity('bag_view');
   const entries = Object.entries(state.cart);
   const lines = entries.map(([id, quantity]) => {
     const item = products.get(id);
@@ -145,6 +147,7 @@ function showCart(focusSelector) {
   if (focusSelector) panel.querySelector(focusSelector)?.focus();
 }
 function showProduct(id) {
+  recordActivity('product_open',{productId:id});
   const item = products.get(id);
   const purchase = item.confirmable
     ? '<p class="detail-stock stock-available">Stock pending</p><button class="btn btn-primary" data-add="' + id + '">Add to bag ' + icon('bag') + '</button>'
@@ -153,12 +156,14 @@ function showProduct(id) {
 }
 const phoneField = '<label>Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="03XX XXXXXXX" required maxlength="24"></label>';
 function showUnavailable() {
+  recordActivity('unavailable_seen');
   openPanel('result','CURRENTLY UNAVAILABLE','<p>Thanks for choosing Beampak. This item is currently unavailable. We’ve saved your selection, so there’s no need to submit again. You won’t be charged.</p><button class="btn btn-primary" data-action="continue">Continue browsing</button>');
 }
 function showCheckout() {
   const entries = Object.entries(state.cart);
   if (!entries.length) return showCart();
   if (entries.some(([id])=>isConfirmed(id))) return showUnavailable();
+  recordActivity('checkout_start');
   trackAdEvent('InitiateCheckout',entries.map(([id,quantity])=>({id,quantity,price:products.get(id).price})));
   const items = entries.map(([id,quantity]) => '<li>' + products.get(id).name + ' × ' + quantity + '</li>').join('');
   openPanel('checkout','REVIEW YOUR ORDER','<form id="confirmation-form" class="stack"><ul>' + items + '</ul>' + totals() +
@@ -183,6 +188,7 @@ const gallery = [
   {image:'led-pod-bike-detail.jpg', alt:'Blue LED pod illuminating a motorcycle side panel', caption:'Motorcycle · installation illustration'}
 ];
 function showGallery(index) {
+  recordActivity('gallery_view',{index});
   const photo = gallery[index];
   const image = find('#gallery-image');
   image.src = '/media/' + photo.image;
@@ -230,7 +236,7 @@ const actions = {
   cart:()=>showCart(),
   close:()=>panel.close(),
   menu:()=>toggleMenu(!find('.nav').classList.contains('open')),
-  film:()=>openPanel('film','AFTER DARK','<div class="film"><video controls playsinline preload="none" poster="/media/hero.jpg" src="https://videos.pexels.com/video-files/29498826/12698158_4070_2160_24fps.mp4"></video><p><a href="' + filmPage + '" target="_blank" rel="noopener">Watch on Pexels · Michael Pronin</a></p></div>','wide'),
+  film:()=>{recordActivity('film_open');return openPanel('film','AFTER DARK','<div class="film"><video controls playsinline preload="none" poster="/media/hero.jpg" src="https://videos.pexels.com/video-files/29498826/12698158_4070_2160_24fps.mp4"></video><p><a href="' + filmPage + '" target="_blank" rel="noopener">Watch on Pexels · Michael Pronin</a></p></div>','wide');},
   checkout:showCheckout,
   'copy-reference':async()=>{
     const feedback = panel.querySelector('.receipt-feedback');
@@ -259,6 +265,7 @@ document.addEventListener('click', event => {
   const {action,filter,product,add,qty,step,slide,gallery,pieceCount} = control.dataset;
   if (action) actions[action]?.();
   else if (filter) {
+    recordActivity('catalog_filter',{filter});
     state.filter = filter;
     state.search = '';
     renderCatalog();
@@ -272,6 +279,7 @@ document.addEventListener('click', event => {
     const quantity = (state.cart[add] || 0) + amount;
     if (quantity > maxOrderQuantity) return notify('Maximum ' + maxOrderQuantity + ' per product');
     setQuantity(add, quantity);
+    recordActivity('add_to_bag',{productId:add,quantity:amount});
     trackAdEvent('AddToCart',[{id:add,quantity:amount,price:products.get(add).price}]);
     if (panel.open || control.hasAttribute('data-open-bag')) showCart();
     else notify(products.get(add).name + ' added to bag');
@@ -280,10 +288,12 @@ document.addEventListener('click', event => {
     const next = Number(step) ? current + Number(step) : 0;
     if (next > maxOrderQuantity) return notify('Maximum ' + maxOrderQuantity + ' per product');
     setQuantity(qty,next);
+    recordActivity(next ? 'bag_quantity' : 'bag_removed',{productId:qty,quantity:next});
     showCart('[data-qty="' + qty + '"][data-step="' + step + '"]');
   } else if (slide !== undefined) showSlide(Number(slide));
   else if (gallery !== undefined) showGallery(Number(gallery));
   else if (pieceCount !== undefined) {
+    recordActivity('quantity_selected',{quantity:Number(pieceCount)});
     find('#item-quantity').value = pieceCount;
     renderItemQuantity();
   }
@@ -295,18 +305,7 @@ find('#stock-only')?.addEventListener('change', event => {
   state.availableOnly = event.target.checked;
   renderCatalog();
 });
-find('#sort')?.addEventListener('change', event => {state.sort=event.target.value;renderCatalog();});
-function readCampaign() {
-  const params = new URLSearchParams(location.search);
-  const tag = key => (params.get(key) || '').trim().toLowerCase().replace(/[<>\u0000-\u001f\u007f]/g,'').slice(0,120);
-  const current = {source:tag('utm_source'),medium:tag('utm_medium'),name:tag('utm_campaign'),content:tag('utm_content'),term:tag('utm_term'),campaignId:tag('campaign_id'),adsetId:tag('adset_id'),adId:tag('ad_id')};
-  try {
-    if (Object.values(current).some(Boolean)) sessionStorage.setItem('beampak-campaign',JSON.stringify(current));
-    else return JSON.parse(sessionStorage.getItem('beampak-campaign')) || current;
-  } catch { /* Preserve campaign tags from this page when storage is unavailable. */ }
-  return current;
-}
-const campaign = readCampaign();
+find('#sort')?.addEventListener('change', event => {state.sort=event.target.value;recordActivity('catalog_sort',{sort:state.sort});renderCatalog();});
 let visitorId;
 function requestVisitor() {
   if (visitorId) return visitorId;
@@ -331,6 +330,7 @@ document.addEventListener('submit', async event => {
     state.search = query;
     state.availableOnly = false;
     renderCatalog();
+    recordActivity('catalog_search',{results:find('#products')?.children.length || 0});
     return actions.continue();
   }
   const confirmation = form.id === 'confirmation-form';
@@ -364,6 +364,7 @@ document.addEventListener('submit', async event => {
     if (!response.ok) throw new Error(result.error || 'Please try again.');
     if (confirmation) {
       if (result.saved !== true) throw new Error('Could not save your confirmation. Please try again.');
+      recordActivity(result.created === true ? 'confirmation_saved' : 'confirmation_repeat',{productId:confirmedProduct,quantity:data.quantity});
       if (result.created === true) trackAdEvent('Lead',[{id:confirmedProduct,quantity:data.quantity,price:products.get(confirmedProduct).price}]);
       rememberConfirmation(confirmedProduct);
       setQuantity(confirmedProduct,0);
@@ -373,6 +374,7 @@ document.addEventListener('submit', async event => {
       showResult(result);
     }
   } catch (failure) {
+    if (confirmation) recordActivity('checkout_error');
     error.textContent = ['TimeoutError','TypeError','SyntaxError'].includes(failure.name)
       ? 'Could not reach Beampak. Check your connection and try again.'
       : failure.message;
@@ -409,7 +411,10 @@ if (itemPage || featuredProduct) {
     document.querySelectorAll('[data-piece-count]').forEach(button => {
       button.querySelector('small').textContent = money(item.price * Number(button.dataset.pieceCount));
     });
-    input.addEventListener('input', renderItemQuantity);
+    input.addEventListener('input',()=>{
+      renderItemQuantity();
+      if (Number.isInteger(state.itemQuantity)) recordActivity('quantity_selected',{quantity:state.itemQuantity});
+    });
     renderItemQuantity();
   }
 }

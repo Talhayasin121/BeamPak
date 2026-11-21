@@ -16,6 +16,14 @@
         <button class="btn btn-primary" disabled>Open store manager</button>
       </form>
       <button id="owner-open" class="btn btn-ghost" type="button" hidden>Open as signed-in owner</button>
+      <section class="manage-interest" id="visitor-activity" aria-labelledby="activity-title" hidden>
+        <div class="manage-interest-header"><h2 id="activity-title">Visitor activity</h2><label>Period<select id="activity-period"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="0">All time</option></select></label><button type="button" class="btn btn-ghost" id="activity-refresh">Refresh activity</button></div>
+        <p id="activity-summary"></p>
+        <p id="activity-feedback" role="status"></p>
+        <div id="activity-visits" class="activity-visits"></div>
+        <button type="button" class="btn btn-ghost" id="activity-more-visits" hidden>Show earlier visits</button>
+        <section id="activity-timeline" hidden><h3 id="activity-visit-title"></h3><ol id="activity-events" class="activity-events"></ol><button type="button" class="btn btn-ghost" id="activity-more-events" hidden>Show more activity</button></section>
+      </section>
       <section class="manage-interest" id="manage-interest" aria-labelledby="interest-title" hidden>
         <div class="manage-interest-header"><h2 id="interest-title">Checkout confirmations</h2><button class="btn btn-ghost" id="refresh-interest" type="button">Refresh confirmations</button></div>
         <p id="interest-totals" role="status"></p>
