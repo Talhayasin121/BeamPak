@@ -78,7 +78,13 @@ function showError(failure) {
 }
 const formatCount = count => Number(count).toLocaleString('en-PK');
 const countLabel = (count,label) => formatCount(count) + ' ' + label + (Number(count) === 1 ? '' : 's');
-const campaignLabel = data => [data.source,data.medium,data.campaign].filter(Boolean).join(' / ') || 'Untagged';
+const campaignLabel = data => {
+  const tags = [data.source,data.medium,data.campaign,data.content,data.term].filter(Boolean);
+  if (data.campaignId) tags.push('Campaign ' + data.campaignId);
+  if (data.adsetId) tags.push('Ad set ' + data.adsetId);
+  if (data.adId) tags.push('Ad ' + data.adId);
+  return tags.join(' / ') || 'Untagged';
+};
 
 async function loadConfirmations(sequence,append=false) {
   if (append && !confirmationCursor) return;

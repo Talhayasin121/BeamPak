@@ -28,3 +28,24 @@ Use Node.js 22.13 or later. Run **npm ci** and **npm run build:netlify** from th
 - Checkout confirmations, piece counts and submitted details appear above previous orders. The first confirmation per product is kept for each browser or supplied mobile number.
 - Add **utm_source**, **utm_medium** and **utm_campaign** to ad links to see checkout confirmations by campaign in the manager. Confirmations without those labels appear as untagged.
 - New orders are paused. Shoppers choose a quantity, enter their name, street address and email, and confirm at checkout. A mobile number is optional and no payments are collected. Previous order tracking and status updates remain available.
+
+## Meta ads setup
+
+The product landing page is **/products/multicolour-led-pod-kit**. Add **META_PIXEL_ID** in Netlify environment variables with your numeric Pixel/Dataset ID, include the Builds scope, and redeploy. Production builds enable the pixel. Deploy previews disable it. The public Pixel ID is written into the storefront configuration.
+
+Optional build variables are **META_DOMAIN_VERIFICATION**, containing only the verification code from Meta Business Settings, and **SITE_URL**, containing your public website origin. Netlify’s **URL** supplies the default origin for canonical and social preview URLs. Verify a custom domain in Meta when you use one.
+
+The pixel loads after the visitor allows ad measurement. Events are **PageView**, **ViewContent**, **AddToCart**, **InitiateCheckout**, **Lead** after a newly saved confirmation, and **Contact** for WhatsApp clicks. Lead reporting counts buying interest. Values for product and checkout events use PKR. Checkout form fields are kept out of the event payloads. Automatic pixel events are disabled by this implementation. Keep Automatic Advanced Matching and the Event Setup Tool’s automatic events disabled in Events Manager for this setup.
+
+In Meta Events Manager, open **Test Events**, visit the public product URL, allow measurement and complete one test confirmation. Confirm that the events arrive in order and that a repeated confirmation adds no new Lead. A declined measurement choice or an ad blocker can prevent Meta reporting. The admin portal keeps saved first-party confirmations.
+
+Use this URL-parameter template in the ad’s tracking settings.
+
+    utm_source={{site_source_name}}&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}&campaign_id={{campaign.id}}&adset_id={{adset.id}}&ad_id={{ad.id}}
+
+The admin portal shows these labels alongside confirmation counts. Numeric IDs preserve attribution when names change. Campaign tags survive navigation from the home page to the product page in the same browser session.
+
+Before spending on ads, confirm that the Netlify deployment is public, the database accepts submissions, the admin portal lists the test, and Meta Test Events receives the configured events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
+
+- [Meta Pixel standard events](https://developers.facebook.com/documentation/meta-pixel/reference)
+- [Meta conversion tracking](https://developers.facebook.com/documentation/meta-pixel/implementation/conversion-tracking)

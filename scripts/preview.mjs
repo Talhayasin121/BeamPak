@@ -18,6 +18,9 @@ if (!database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND nam
 if (!database.prepare("SELECT name FROM pragma_table_info('order_confirmations') WHERE name = 'email'").get()) {
   database.exec('BEGIN;\n' + readFileSync('drizzle/0003_checkout_contact.sql','utf8') + '\nCOMMIT;');
 }
+if (!database.prepare("SELECT name FROM pragma_table_info('order_confirmations') WHERE name = 'ad_id'").get()) {
+  database.exec('BEGIN;\n' + readFileSync('drizzle/0004_meta_attribution.sql','utf8') + '\nCOMMIT;');
+}
 const DB = {
   prepare(sql) {
     const statement = database.prepare(sql);
