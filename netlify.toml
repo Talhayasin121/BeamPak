@@ -31,6 +31,6 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' https://www.facebook.com https://connect.facebook.net; connect-src 'self' https://www.facebook.com https://connect.facebook.net; media-src https://videos.pexels.com; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' https://www.facebook.com https://connect.facebook.net; connect-src 'self' https://www.facebook.com https://connect.facebook.net https://mpc2-prod-26-is5qnl632q-uc.a.run.app https://0l-a08c0393bf534f3994bcafe6e0dc91b4.ecs.us-west-2.on.aws; media-src https://videos.pexels.com; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
