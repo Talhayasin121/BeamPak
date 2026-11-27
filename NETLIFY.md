@@ -45,7 +45,7 @@ Use this URL-parameter template in the ad’s tracking settings.
 
 The admin portal shows these labels alongside confirmation counts. Numeric IDs preserve attribution when names change. Campaign tags survive navigation from the home page to the product page in the same browser session.
 
-Before spending on ads, confirm that the Netlify deployment is public, the readiness endpoint reports ready, and the store manager is accessible. Test checkout on a deploy preview so production campaign totals stay clean. Meta Pixel is configured for consented production visits. Verify event receipt in Meta Test Events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
+Before spending on ads, confirm that the Netlify deployment is public, the readiness endpoint reports ready, and the store manager is accessible. Test checkout on a deploy preview so production campaign totals stay clean. Meta Pixel is configured for production visits without a pop-up, with an opt-out in Advertising preferences. Verify event receipt in Meta Test Events. The development Sites URL is private. Meta account configuration, domain verification and campaign publication take place in your Meta account.
 
 - [Meta Pixel standard events](https://developers.facebook.com/documentation/meta-pixel/reference)
 - [Meta conversion tracking](https://developers.facebook.com/documentation/meta-pixel/implementation/conversion-tracking)
@@ -96,7 +96,7 @@ The Submissions table in `/manage` is the source of saved demand counts and incl
 
 Responsive WebP variants are checked in under `web/media/fast/`; original artwork remains available. Regenerate the variants and browser manifest with **npm run optimize:images** when source images change. The pod and accessory variants use lossless WebP encoding after resizing, with compact PNG fallbacks for older browsers. Both deployment builds add a content fingerprint to optimized image URLs, allowing long browser caching while refreshing changed artwork.
 
-The default bundle is rendered in the page markup. Quantity updates reuse existing picture and accessory nodes, and critical fonts and modules are discovered early. Activity events stay in memory during rapid input, are persisted in batches, and are saved immediately before page exit. Cart and confirmation persistence retain their existing behaviour. Production Pixel measurement uses the configured ID after visitor consent.
+The default bundle is rendered in the page markup. Quantity updates reuse existing picture and accessory nodes, and critical fonts and modules are discovered early. Activity events stay in memory during rapid input, are persisted in batches, and are saved immediately before page exit. Cart and confirmation persistence retain their existing behaviour. Production Pixel measurement uses the configured ID without a pop-up, while respecting saved opt-outs.
 
 Meta automatic forwarding uses two exact HTTPS endpoints advertised by this dataset's Meta signals configuration. The production CSP allows those endpoints in connect-src only; script-src remains restricted to this site and connect.facebook.net. These destinations can change if the Meta-managed connection is reconfigured. Browser HTTP success alone does not confirm ingestion in Events Manager; verify browser and server activity there after publishing. No Conversions API token or test code is embedded in the website.
 

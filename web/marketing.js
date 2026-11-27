@@ -11,14 +11,14 @@ let viewSent = false;
 const viewedItem = catalog.find(item => item.id === document.querySelector('[data-item-page]')?.dataset.itemPage);
 
 function send(name, data = {}) {
-  if (!enabled || consent !== 'allow') return;
+  if (!enabled || consent === 'decline') return;
   try {
     if (!initialized) initialize();
     window.fbq('track',name,data);
   } catch { /* Optional measurement must not interrupt shopping. */ }
 }
 function sendViews() {
-  if (viewSent || consent !== 'allow') return;
+  if (viewSent || consent === 'decline') return;
   send('PageView');
   if (viewedItem) trackAdEvent('ViewContent',[{id:viewedItem.id,quantity:1,price:viewedItem.price}]);
   viewSent = true;
@@ -55,38 +55,23 @@ export function trackAdEvent(name, lines = []) {
   }
   send(name,data);
 }
-let banner;
-function showPreferences() {
-  if (!enabled) return;
-  banner ??= document.createElement('section');
-  banner.className = 'ad-consent';
-  banner.setAttribute('role','region');
-  banner.setAttribute('aria-label','Ad measurement preferences');
-  banner.innerHTML = '<p>Allow Meta ad measurement?</p><p>With your permission, we use Meta Pixel to measure visits and shopping actions. <a href="/support.html#advertising">Privacy details</a></p><div><button type="button" class="btn btn-primary" data-ad-choice="allow">Allow</button><button type="button" class="btn btn-ghost" data-ad-choice="decline">Decline</button></div>';
-  document.body.append(banner);
-  banner.hidden = false;
+function updatePreferences() {
+  document.querySelectorAll('[data-ad-preferences]').forEach(button => {
+    button.hidden = !enabled;
+    button.textContent = consent === 'decline' ? 'Enable ad measurement' : 'Stop ad measurement';
+    button.setAttribute('aria-pressed', String(consent !== 'decline'));
+  });
 }
 document.addEventListener('click',event => {
-  const preference = event.target.closest('[data-ad-preferences]');
-  if (preference) {
-    showPreferences();
-    banner?.querySelector('button')?.focus();
-  }
-  const choice = event.target.closest('[data-ad-choice]')?.dataset.adChoice;
-  if (choice === 'allow' || choice === 'decline') {
-    consent = choice;
-    try {localStorage.setItem(consentKey,choice);} catch { /* Use this page's choice. */ }
-    if (choice === 'allow') {
-      if (initialized) window.fbq('consent','grant');
-      sendViews();
-    } else if (initialized) window.fbq('consent','revoke');
-    banner.hidden = true;
+  if (event.target.closest('[data-ad-preferences]')) {
+    consent = consent === 'decline' ? 'allow' : 'decline';
+    try {localStorage.setItem(consentKey,consent);} catch { /* Keep the choice for this page. */ }
+    if (initialized) window.fbq('consent',consent === 'decline' ? 'revoke' : 'grant');
+    if (consent !== 'decline') sendViews();
+    updatePreferences();
   }
   const link = event.target.closest('a[href]');
   if (link?.href.startsWith('https://wa.me/923309153823')) trackAdEvent('Contact');
 });
-if (enabled) {
-  document.querySelectorAll('[data-ad-preferences]').forEach(button=>{button.hidden=false;});
-  if (consent === 'allow') sendViews();
-  else if (consent !== 'decline') showPreferences();
-}
+updatePreferences();
+if (enabled) sendViews();
